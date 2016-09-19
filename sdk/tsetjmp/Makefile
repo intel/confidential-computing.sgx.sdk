@@ -34,37 +34,26 @@ include ../../buildenv.mk
 CFLAGS   += $(ENCLAVE_CFLAGS)
 ASFLAGS  := $(CFLAGS)
 CFLAGS   += -std=c99
-CXXFLAGS += $(ENCLAVE_CXXFLAGS) -fno-exceptions -fno-rtti
+CXXFLAGS += $(ENCLAVE_CXXFLAGS) -fno-exceptions -fno-rtti -D_TLIBC_USE_INTEL_FAST_STRING_
 
 CPPFLAGS += -I.                          \
-            -I$(COMMON_DIR)/inc          \
-            -I$(COMMON_DIR)/inc/tlibc    \
             -I$(COMMON_DIR)/inc/internal \
-            -I$(LINUX_SDK_DIR)/trts      \
-            -I./gdtoa      \
+            -I$(COMMON_DIR)/inc/internal/linux \
 
-LIBC_C_SRCS := $(wildcard gen/*.c gdtoa/*.c locale/*.c stdlib/*.c string/*.c stdio/*.c time/*.c)
+LIBLONGJMP_CPP_SRCS := tlongjmp_version.cpp
+LIBLONGJMP_ASM_SRCS := $(wildcard *.S)
 
-LIBC_CPP_SRCS := $(wildcard gen/*.cpp) tstdc_version.cpp
-LIBC_ASM_SRCS := $(wildcard gen/*.S)
+LIBLONGJMP_OBJS := $(LIBLONGJMP_ASM_SRCS:.S=.o)
+LIBLONGJMP_OBJS += $(LIBLONGJMP_CPP_SRCS:.cpp=.o)
 
-LIBC_OBJS := $(LIBC_C_SRCS:.c=.o)
-LIBC_OBJS += $(LIBC_CPP_SRCS:.cpp=.o)
-LIBC_OBJS += $(LIBC_ASM_SRCS:.S=.o)
-
-LIBC_NAME    := libtlibc.a
+LIBLONGJMP_NAME    := libsgx_tsetjmp.a
 
 .PHONY: all
-all: $(LIBC_NAME)
+all: $(LIBLONGJMP_NAME) | $(BUILD_DIR)
+	$(CP) $(LIBLONGJMP_NAME) $|
 
-$(LIBC_NAME): $(LIBC_OBJS)
+$(LIBLONGJMP_NAME): $(LIBLONGJMP_OBJS)
 	$(AR) rcs $@ $^
-
-string/consttime_memequal.o: string/consttime_memequal.c
-	$(CC)  $(filter-out -O2,$(CFLAGS)) -O1 $(CPPFLAGS) -c $< -o $@
-	
-%.o: %.c
-	$(CC)  $(CFLAGS)   $(CPPFLAGS) -c $< -o $@
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
@@ -72,6 +61,9 @@ string/consttime_memequal.o: string/consttime_memequal.c
 %.o: %.S
 	$(CC)  $(ASFLAGS)  $(CPPFLAGS) -c $< -o $@
 
+$(BUILD_DIR):
+	@$(MKDIR) $@
+
 .PHONY: clean
 clean:
-	@$(RM) $(LIBC_NAME) $(LIBC_OBJS)
+	@$(RM) $(LIBLONGJMP_NAME) $(LIBLONGJMP_OBJS) $(BUILD_DIR)/$(LIBLONGJMP_NAME)
