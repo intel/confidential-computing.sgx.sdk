@@ -39,7 +39,6 @@
 // add a version to tcrypto.
 SGX_ACCESS_VERSION(tcrypto, 1)
 
-#ifdef SGX_USE_OPT_LIB
 
 /* Crypto Library Initialization
 * Parameters:
@@ -109,10 +108,6 @@ extern "C" sgx_status_t sgx_init_crypto_lib(uint64_t cpu_feature_indicator)
         {
             ippCpuFeatures |= ippCPUID_PREFETCHW;
         }
-        if ((cpu_feature_indicator & CPU_FEATURE_PCLMULQDQ) == CPU_FEATURE_PCLMULQDQ)
-        {
-            ippCpuFeatures |= ippCPUID_CLMUL;
-        }
     }
     else
     {
@@ -131,12 +126,3 @@ extern "C" sgx_status_t sgx_init_crypto_lib(uint64_t cpu_feature_indicator)
     return SGX_SUCCESS;
 }
 
-#else
-
-extern "C" sgx_status_t sgx_init_crypto_lib(uint64_t cpu_feature_indicator)
-{
-    (void) cpu_feature_indicator;
-    return SGX_SUCCESS;
-}
-
-#endif

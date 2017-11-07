@@ -33,18 +33,21 @@
 
 
 #include "sgx_ecc256_common.h"
+#include "sgx_ecc256_internal.h"
 
-/* Computes 512-bit DH shared key based on private B key (local) and remote public Ga Key
+
+
+/* Computes a point with scalar multiplication based on private B key (local) and remote public Ga Key
  * Parameters:
- *     Return: sgx_status_t - SGX_SUCCESS or failure as defined sgx_error.h
- *    Inputs: sgx_ecc_state_handle_t ecc_handle ?Handle to ECC crypto system
+ *    Return: sgx_status_t - SGX_SUCCESS or failure as defined sgx_error.h
+ *    Inputs: sgx_ecc_state_handle_t ecc_handle - Handle to ECC crypto system
  *            sgx_ec256_private_t *p_private_b - Pointer to the local private key - LITTLE ENDIAN
  *            sgx_ec256_public_t *p_public_ga - Pointer to the remote public key - LITTLE ENDIAN
- *    Output: sgx_ec256_dh_shared_t *p_shared_key ?Pointer to the shared DH key - LITTLE ENDIAN
-                                                    x-coordinate of (privKeyB ?pubKeyA) */
-sgx_status_t sgx_ecc256_compute_shared_dhkey512(sgx_ec256_private_t *p_private_b,
+ *    Output: sgx_ec256_shared_point_t *p_shared_key - Pointer to the target shared point - LITTLE ENDIAN
+                                                    x-coordinate of (privKeyB - pubKeyA) */
+sgx_status_t sgx_ecc256_compute_shared_point(sgx_ec256_private_t *p_private_b,
                                            sgx_ec256_public_t *p_public_ga,
-                                           sgx_ec256_dh_shared512_t *p_shared_key,
+                                           sgx_ec256_shared_point_t *p_shared_key,
                                            sgx_ecc_state_handle_t ecc_handle)
 {
     if ((ecc_handle == NULL) || (p_private_b == NULL) || (p_public_ga == NULL) || (p_shared_key == NULL))
@@ -53,8 +56,8 @@ sgx_status_t sgx_ecc256_compute_shared_dhkey512(sgx_ec256_private_t *p_private_b
     }
 
     IppsBigNumState*    BN_dh_privB = NULL;
-    IppsBigNumState*    BN_dh_share512_x = NULL;
-    IppsBigNumState*    BN_dh_share512_y = NULL;
+    IppsBigNumState*    BN_dh_shared_x = NULL;
+    IppsBigNumState*    BN_dh_shared_y = NULL;
     IppsBigNumState*    pubA_gx = NULL;
     IppsBigNumState*    pubA_gy = NULL;
     IppsECCPPointState* point_pubA = NULL;
@@ -85,7 +88,7 @@ sgx_status_t sgx_ecc256_compute_shared_dhkey512(sgx_ec256_private_t *p_private_b
         ipp_ret = ippsECCPSetPoint(pubA_gx, pubA_gy, point_pubA, p_ecc_state);
         ERROR_BREAK(ipp_ret);
 
-        //defense in depth to verify that input publick key in ECC group
+        //defense in depth to verify that input public key in ECC group
         //a return value of ippECValid indicates the point is on the elliptic curve
         //and is not the point at infinity
         ipp_ret = ippsECCPCheckPoint(point_pubA, &ipp_result, p_ecc_state);
@@ -106,9 +109,9 @@ sgx_status_t sgx_ecc256_compute_shared_dhkey512(sgx_ec256_private_t *p_private_b
         ipp_ret = ippsECCPPointInit(256, point_R);
         ERROR_BREAK(ipp_ret);
 
-        ipp_ret = sgx_ipp_newBN(NULL, sizeof(sgx_ec256_dh_shared_t), &BN_dh_share512_x);
+        ipp_ret = sgx_ipp_newBN(NULL, sizeof(sgx_ec256_dh_shared_t), &BN_dh_shared_x);
         ERROR_BREAK(ipp_ret);
-        ipp_ret = sgx_ipp_newBN(NULL, sizeof(sgx_ec256_dh_shared_t), &BN_dh_share512_y);
+        ipp_ret = sgx_ipp_newBN(NULL, sizeof(sgx_ec256_dh_shared_t), &BN_dh_shared_y);
         ERROR_BREAK(ipp_ret);
 
         ipp_ret = ippsECCPMulPointScalar(point_pubA, BN_dh_privB, point_R, p_ecc_state);
@@ -126,20 +129,20 @@ sgx_status_t sgx_ecc256_compute_shared_dhkey512(sgx_ec256_private_t *p_private_b
             break;
         }
 
-        ipp_ret = ippsECCPGetPoint(BN_dh_share512_x, BN_dh_share512_y, point_R, p_ecc_state);
+        ipp_ret = ippsECCPGetPoint(BN_dh_shared_x, BN_dh_shared_y, point_R, p_ecc_state);
         ERROR_BREAK(ipp_ret);
 
         IppsBigNumSGN sgn = IppsBigNumPOS;
         int length = 0;
         Ipp32u *pdata = NULL;
-        ipp_ret = ippsRef_BN(&sgn, &length, &pdata, BN_dh_share512_x);
+        ipp_ret = ippsRef_BN(&sgn, &length, &pdata, BN_dh_shared_x);
         ERROR_BREAK(ipp_ret);
         memset(p_shared_key->x, 0, sizeof(p_shared_key->x));
         memcpy(p_shared_key->x, pdata, ROUND_TO(length, 8)/8);
         // Clear memory securely
         memset_s(pdata, sizeof(p_shared_key->x), 0, ROUND_TO(length, 8)/8);
 
-        ipp_ret = ippsRef_BN(&sgn, &length, &pdata, BN_dh_share512_y);
+        ipp_ret = ippsRef_BN(&sgn, &length, &pdata, BN_dh_shared_y);
         ERROR_BREAK(ipp_ret);
         memset(p_shared_key->y, 0, sizeof(p_shared_key->y));
         memcpy(p_shared_key->y, pdata, ROUND_TO(length, 8)/8);
@@ -153,8 +156,8 @@ sgx_status_t sgx_ecc256_compute_shared_dhkey512(sgx_ec256_private_t *p_private_b
     sgx_ipp_secure_free_BN(pubA_gx, sizeof(p_public_ga->gx));
     sgx_ipp_secure_free_BN(pubA_gy, sizeof(p_public_ga->gy));
     sgx_ipp_secure_free_BN(BN_dh_privB, sizeof(sgx_ec256_private_t));
-    sgx_ipp_secure_free_BN(BN_dh_share512_x, sizeof(sgx_ec256_dh_shared_t));
-    sgx_ipp_secure_free_BN(BN_dh_share512_y, sizeof(sgx_ec256_dh_shared_t));
+    sgx_ipp_secure_free_BN(BN_dh_shared_x, sizeof(sgx_ec256_dh_shared_t));
+    sgx_ipp_secure_free_BN(BN_dh_shared_y, sizeof(sgx_ec256_dh_shared_t));
 
     if (ipp_ret == ippStsNoMemErr || ipp_ret == ippStsMemAllocErr)
     {

@@ -30,34 +30,82 @@
  */
 
 
-#ifndef _SGX_ECC256_COMMON_H_
-#define _SGX_ECC256_COMMON_H_
+.file "xsave_gnu.S"
 
-#include "sgx_trts.h"
-#include "sgx_tcrypto.h"
-#include "ippcp.h"
-#include "util.h"
-#include "stdlib.h"
-#include "string.h"
+#include "linux/linux-regs.h"
 
-#ifndef ERROR_BREAK
-#define ERROR_BREAK(x)  if(x != ippStsNoErr){break;}
+.macro DO_XSAVEC
+#if defined(LINUX64)
+    .byte   0x48, 0x0f, 0xc7, 0x21
+#else
+    .byte   0x0f, 0xc7, 0x21
 #endif
-#ifndef SAFE_FREE
-#define SAFE_FREE(ptr) {if (NULL != (ptr)) {free(ptr); (ptr)=NULL;}}
+.endm
+.macro DO_XRSTOR
+#if defined(LINUX64)
+    .byte   0x48, 0x0f, 0xae, 0x29
+#else
+    .byte   0x0f, 0xae, 0x29
 #endif
-
-IppStatus sgx_ipp_newBN(const Ipp32u *p_data, int size_in_bytes, IppsBigNumState **p_new_BN);
-void sgx_ipp_secure_free_BN(IppsBigNumState *pBN, int size_in_bytes);
-IppStatus __STDCALL sgx_ipp_DRNGen(Ipp32u* pRandBNU, int nBits, void* pCtx);
-
-
-
-static inline IppStatus check_copy_size(size_t target_size, size_t source_size)
-{
-    if(target_size < source_size)
-        return ippStsSizeErr;
-    return ippStsNoErr;
-}
-
+.endm
+.macro DO_FXSAVE
+#if defined(LINUX64)
+    .byte   0x48, 0x0f, 0xae, 0x01
+#else
+    .byte   0x0f, 0xae, 0x01
 #endif
+.endm
+.macro DO_FXRSTOR
+#if defined(LINUX64)
+    .byte   0x48, 0x0f, 0xae, 0x09
+#else
+    .byte   0x0f, 0xae, 0x09
+#endif
+.endm
+
+.text
+DECLARE_LOCAL_FUNC restore_xregs
+#if defined(LINUX32)
+    mov     SE_WORDSIZE(%esp), %ecx
+    lea     g_xsave_enabled, %eax
+#else
+    mov     %rdi, %rcx
+    mov     g_xsave_enabled@GOTPCREL(%rip), %rax
+#endif
+    movl    (%xax), %eax
+    cmpl    $0, %eax
+    jz      1f
+    xor     %xax, %xax
+    xor     %xdx, %xdx
+    mov     $0xFFFFFFFF, %eax
+    mov     $0xFFFFFFFF, %edx
+    DO_XRSTOR
+    jmp     2f
+1:
+    DO_FXRSTOR
+2:
+    ret
+
+DECLARE_LOCAL_FUNC save_xregs
+#if defined(LINUX32)
+    mov     SE_WORDSIZE(%esp), %ecx
+    lea     g_xsave_enabled, %eax
+#else
+    mov     %rdi, %rcx
+    mov     g_xsave_enabled@GOTPCREL(%rip), %rax
+#endif
+    fwait
+    movl    (%xax), %eax
+    cmpl    $0, %eax
+    jz      1f
+    xor     %xax, %xax
+    xor     %xdx, %xdx
+    mov     $0xFFFFFFFF, %eax
+    mov     $0xFFFFFFFF, %edx
+    DO_XSAVEC
+    jmp     2f
+1:
+    DO_FXSAVE
+2:
+    ret
+

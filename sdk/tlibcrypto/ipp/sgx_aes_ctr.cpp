@@ -29,7 +29,6 @@
  *
  */
 
-
 #include "sgx_tcrypto.h"
 #include "ippcp.h"
 #include "stdlib.h"
