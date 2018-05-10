@@ -30,7 +30,7 @@
  */
 
 
-#include "sgx_ecc256_common.h"
+#include "sgx_tcrypto_common.h"
 
 
 IppStatus sgx_ipp_newBN(const Ipp32u *p_data, int size_in_bytes, IppsBigNumState **p_new_BN)
@@ -105,7 +105,7 @@ void sgx_ipp_secure_free_BN(IppsBigNumState *pBN, int size_in_bytes)
     return;
 }
 
-IppStatus __STDCALL sgx_ipp_DRNGen(Ipp32u* pRandBNU, int nBits, void* pCtx)
+IppStatus IPP_STDCALL sgx_ipp_DRNGen(Ipp32u* pRandBNU, int nBits, void* pCtx)
 {
     sgx_status_t sgx_ret;
     UNUSED(pCtx);
@@ -127,3 +127,30 @@ IppStatus __STDCALL sgx_ipp_DRNGen(Ipp32u* pRandBNU, int nBits, void* pCtx)
     }
     return ippStsNoErr;
 }
+
+
+IppStatus sgx_ipp_newPrimeGen(int nMaxBits, IppsPrimeState ** pPrimeG)
+{
+    if (pPrimeG == NULL || nMaxBits <= 0) {
+        return ippStsBadArgErr;
+    }
+    int ctxSize = 0;
+    IppStatus error_code = ippsPrimeGetSize(nMaxBits, &ctxSize);
+    if (error_code != ippStsNoErr) {
+        return error_code;
+    }
+    IppsPrimeState* pCtx = (IppsPrimeState *)malloc(ctxSize);
+    if (pCtx == NULL) {
+        return ippStsMemAllocErr;
+    }
+
+    error_code = ippsPrimeInit(nMaxBits, pCtx);
+    if (error_code != ippStsNoErr) {
+        free(pCtx);
+        return error_code;
+    }
+
+    *pPrimeG = pCtx;
+    return error_code;
+}
+
