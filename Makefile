@@ -50,6 +50,9 @@ psw_install_pkg: psw
 deb_sgx_enclave_common_pkg: psw
 	./linux/installer/deb/libsgx-enclave-common/build.sh
 
+deb_sgx_enclave_common_dev_pkg:
+	./linux/installer/deb/libsgx-enclave-common-dev/build.sh
+
 clean:
 	@$(MAKE) -C sdk/                                clean
 	@$(MAKE) -C psw/                                clean

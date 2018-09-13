@@ -63,5 +63,4 @@ install:
 	ln -fs libsgx_urts.so.$(ECL_VER) libsgx_urts.so.$(shell echo $(ECL_VER) |awk -F. '{print $$1}') && \
 	ln -fs libsgx_urts.so.$(shell echo $(ECL_VER) |awk -F. '{print $$1}') libsgx_urts.so && \
 	mv libsgx_enclave_common.so libsgx_enclave_common.so.$(ECL_VER) && \
-	ln -fs libsgx_enclave_common.so.$(ECL_VER) libsgx_enclave_common.so.$(shell echo $(ECL_VER) |awk -F. '{print $$1}') && \
-	ln -fs libsgx_enclave_common.so.$(shell echo $(ECL_VER) |awk -F. '{print $$1}') libsgx_enclave_common.so
+	ln -fs libsgx_enclave_common.so.$(ECL_VER) libsgx_enclave_common.so.$(shell echo $(ECL_VER) |awk -F. '{print $$1}')
