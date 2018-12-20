@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # Copyright (C) 2011-2018 Intel Corporation. All rights reserved.
 #
@@ -30,31 +31,28 @@
 #
 
 
-include ../../buildenv.mk
+set -e
 
-CPPFLAGS += -I$(COMMON_DIR)/inc       \
-            -I$(COMMON_DIR)/inc/tlibc \
-            -I./stlport
+SCRIPT_DIR=$(dirname "$0")
+ROOT_DIR="${SCRIPT_DIR}/../../../../"
+LINUX_INSTALLER_DIR="${ROOT_DIR}/linux/installer"
+LINUX_INSTALLER_COMMON_DIR="${LINUX_INSTALLER_DIR}/common"
 
-CXXFLAGS += $(ENCLAVE_CXXFLAGS)
+INSTALL_PATH=${SCRIPT_DIR}/output
 
-SRCS       := src/string.cpp \
-	          src/complex.cpp \
-			  src/complex_trig.cpp
+# Cleanup
+rm -fr ${INSTALL_PATH}
 
-OBJS       := $(SRCS:.cpp=.o)
+# Get the configuration for this package
+source ${SCRIPT_DIR}/installConfig
 
-LIBNAME_AR = libtlibstdcxx.a
+# Fetch the gen_source script
+cp ${LINUX_INSTALLER_COMMON_DIR}/gen_source/gen_source.py ${SCRIPT_DIR}
 
-.PHONY:all
-all: $(LIBNAME_AR)
+# Copy the license file
+python ${SCRIPT_DIR}/gen_source.py --bom=../licenses/BOM_license.txt --cleanup=false
 
-$(LIBNAME_AR): $(OBJS)
-	$(AR) rcs $(LIBNAME_AR) $^
-
-$(OBJS): %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
-
-.PHONY: clean
-clean:
-	@$(RM) $(LIBNAME_AR) $(OBJS)
+# Create the tarball
+pushd ${INSTALL_PATH} &> /dev/null
+tar -zcvf ${TARBALL_NAME} *
+popd &> /dev/null

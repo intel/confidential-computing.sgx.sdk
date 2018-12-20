@@ -34,14 +34,14 @@
 
 #define __CONCAT(x, y) x/**/y
 
-#define SGX_TSTDCXX_VERSION_STR  __CONCAT("SGX_TSTDCXX_VERSION_", STRFILEVER)
+#define SGX_TCXX_VERSION_STR  __CONCAT("SGX_TCXX_VERSION_", STRFILEVER)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 __attribute__((visibility("default")))
-char sgx_tstdcxx_version[] = SGX_TSTDCXX_VERSION_STR;
+char sgx_tcxx_version[] = SGX_TCXX_VERSION_STR;
 
 #ifdef __cplusplus
 }
