@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # Copyright (C) 2011-2019 Intel Corporation. All rights reserved.
 #
@@ -29,33 +30,26 @@
 #
 #
 
-include ../../buildenv.mk
 
-CFLAGS += -Werror -D_GNU_SOURCE -fPIC
-CFLAGS += $(ADDED_INC)
+set -e 
 
-CPPFLAGS := -I$(COMMON_DIR)/inc \
-            -I$(COMMON_DIR)/inc/internal
+if test $(id -u) -ne 0; then
+    echo "Root privilege is required."
+    exit 1
+fi
 
-OBJS := se_memory.o \
-        se_thread.o \
-        se_trace.o  \
-        se_event.o  \
-        se_rwlock.o \
-        se_time.o \
-        se_map.o
+# Kill AESM service
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload
+    systemctl stop aesmd
+    systemctl disable aesmd 2> /dev/null
+elif [ -d /etc/init/ ]; then
+    /sbin/initctl reload-configuration
+    /sbin/initctl stop aesmd
+fi
 
-LIBWRAPPER := libwrapper.a
+# Remove AESM user and group
+/usr/sbin/userdel aesmd 2> /dev/null || true
+/usr/sbin/groupdel aesmd 2> /dev/null || true
 
-.PHONY: clean all
-all: $(LIBWRAPPER)
-
-$(LIBWRAPPER): $(OBJS)
-	$(AR) rcs $@ $^
-
-$(OBJS): %.o: $(COMMON_DIR)/src/%.c
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
-
-.PHONY: clean
-clean:
-	@$(RM) $(LIBWRAPPER) $(OBJS)
+exit 0

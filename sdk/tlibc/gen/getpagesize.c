@@ -29,56 +29,13 @@
  *
  */
 
-#ifndef _SL_COMPILER_H_
-#define _SL_COMPILER_H_
+#include "global_data.h"
 
-#include "se_cdefs.h"
+/**
+ * In SE, the page size is defined by macro `SE_PAGE_SIZE'.
+ */
+int getpagesize(void)
+{
+    return SE_PAGE_SIZE;
+}
 
-#ifndef __dead
-//#define __dead                  __attribute__((noreturn))
-#define __dead
-#endif
-
-#ifndef __twice
-//#define __twice                 __attribute__((returns_twice))
-#define __twice
-#endif
-
-#ifndef likely
-#define likely(cond)             __builtin_expect(((cond) != 0), 1)
-#endif
-
-#ifndef unlikely
-#define unlikely(cond)           __builtin_expect(((cond) != 0), 0)
-#endif
-
-#ifndef __BEGIN_DECLS
-#if defined(__cplusplus)
-#define __BEGIN_DECLS           extern "C" {
-#define __END_DECLS             }
-#else
-#define __BEGIN_DECLS
-#define __END_DECLS
-#endif
-#endif
-
-#ifndef STR
-#define STR(s)                  #s
-#endif
-
-#ifndef XSTR
-#define XSTR(s)                 STR(s)
-#endif
-
-#ifndef weak_alias
-#define weak_alias(old, new)    \
-    extern __typeof(old) new __attribute__((weak, alias(#old)))
-#endif
-
-/* The file name of current source file, instead of path */
-#define __FILENAME__            (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1 : __FILE__)
-
-/* A compiler barrier, not to be confused with a_barrier */
-#define __barrier()             __asm__ __volatile__("": : :"memory")
-
-#endif /* _SL_COMPILER_H_ */

@@ -29,56 +29,46 @@
  *
  */
 
-#ifndef _SL_COMPILER_H_
-#define _SL_COMPILER_H_
+#ifndef _SGX_UAE_LAUNCH_H_
+#define _SGX_UAE_LAUNCH_H_
 
-#include "se_cdefs.h"
+#include <stdint.h>
 
-#ifndef __dead
-//#define __dead                  __attribute__((noreturn))
-#define __dead
+#include "sgx_error.h"
+#include "sgx_urts.h"
+
+#ifdef  __cplusplus
+extern "C" {
 #endif
 
-#ifndef __twice
-//#define __twice                 __attribute__((returns_twice))
-#define __twice
+/**
+ * Get the white list's size
+ *
+ * @param p_whitelist_size Save the size of the white list.
+ * @return if OK, return SGX_SUCCESS
+ */
+sgx_status_t SGXAPI sgx_get_whitelist_size(uint32_t* p_whitelist_size);
+
+/**
+ * Get the white list value
+ *
+ * @param p_whitelist Save the white list value
+ * @param whitelist_size The size of the white list and the read data size is whitelist_size
+ * @return if OK, return SGX_SUCCESS
+ */
+sgx_status_t SGXAPI sgx_get_whitelist(uint8_t* p_whitelist, uint32_t whitelist_size);
+
+/**
+ * Register white list certificate chain
+ *
+ * @param p_wl_cert_chain The white list to be registered.
+ * @param wl_cert_chain_size The size of the white list.
+ * @return If OK, return SGX_SUCCESS
+ */
+sgx_status_t SGXAPI sgx_register_wl_cert_chain(uint8_t* p_wl_cert_chain, uint32_t wl_cert_chain_size);
+
+#ifdef  __cplusplus
+}
 #endif
 
-#ifndef likely
-#define likely(cond)             __builtin_expect(((cond) != 0), 1)
 #endif
-
-#ifndef unlikely
-#define unlikely(cond)           __builtin_expect(((cond) != 0), 0)
-#endif
-
-#ifndef __BEGIN_DECLS
-#if defined(__cplusplus)
-#define __BEGIN_DECLS           extern "C" {
-#define __END_DECLS             }
-#else
-#define __BEGIN_DECLS
-#define __END_DECLS
-#endif
-#endif
-
-#ifndef STR
-#define STR(s)                  #s
-#endif
-
-#ifndef XSTR
-#define XSTR(s)                 STR(s)
-#endif
-
-#ifndef weak_alias
-#define weak_alias(old, new)    \
-    extern __typeof(old) new __attribute__((weak, alias(#old)))
-#endif
-
-/* The file name of current source file, instead of path */
-#define __FILENAME__            (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1 : __FILE__)
-
-/* A compiler barrier, not to be confused with a_barrier */
-#define __barrier()             __asm__ __volatile__("": : :"memory")
-
-#endif /* _SL_COMPILER_H_ */
