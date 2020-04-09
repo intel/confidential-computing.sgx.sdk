@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #
-# Copyright (C) 2011-2020 Intel Corporation. All rights reserved.
+# Copyright (C) 2020 Intel Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,63 +28,20 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#
 
+set -e
+docker build  --target aesm --build-arg https_proxy=$https_proxy \
+              --build-arg http_proxy=$http_proxy -t sgx_aesm -f ./Dockerfile ../../
 
-top_dir=`dirname $0`
-out_dir=$top_dir
-optlib_name=optimized_libs_2.9.1.tar.gz
-ae_file_name=prebuilt_ae_2.9.1.tar.gz
-binutils_file_name=as.ld.objdump.gold.r1.tar.gz
-checksum_file=SHA256SUM_prebuilt_2.9.1.txt
-server_url_path=https://download.01.org/intel-sgx/sgx-linux/2.9.1/
-server_optlib_url=$server_url_path/$optlib_name
-server_ae_url=$server_url_path/$ae_file_name
-server_binutils_url=$server_url_path/$binutils_file_name
-server_checksum_url=$server_url_path/$checksum_file
+docker build --target sample --build-arg https_proxy=$https_proxy \
+             --build-arg http_proxy=$http_proxy -t sgx_sample -f ./Dockerfile ../../
 
-rm -f $out_dir/$optlib_name
-wget $server_optlib_url -P $out_dir
-if [ $? -ne 0 ]; then
-    echo "Fail to download file $server_optlib_url"
-    exit -1
-fi
+# Create a temporary directory on the host that is mounted
+# into both the AESM and sample containers at /var/run/aesmd
+# so that the AESM socket is visible to the sample container
+# in the expected location. It is critical that /tmp/aesmd is
+# world writable as the UIDs may shift in the container.
 
-rm -f $out_dir/$ae_file_name
-wget $server_ae_url -P $out_dir
-if [ $? -ne 0 ]; then
-    echo "Fail to download file $server_ae_url"
-    exit -1
-fi
-
-rm -f $out_dir/$binutils_file_name
-wget $server_binutils_url -P $out_dir
-if [ $? -ne 0 ]; then
-    echo "Fail to download file $server_binutils_url"
-    exit -1
-fi
-
-rm -f $out_dir/$checksum_file
-wget $server_checksum_url -P $out_dir
-if [ $? -ne 0 ]; then
-    echo "Fail to download file $server_checksum_url"
-    exit -1
-fi
-
-
-pushd $out_dir
-
-sha256sum -c $checksum_file
-if [ $? -ne 0 ]; then
-    echo "Checksum verification failure"
-    exit -1
-fi
-tar -zxf $optlib_name
-tar -zxf $ae_file_name
-tar -zxf $binutils_file_name
-rm -f $optlib_name
-rm -f $ae_file_name
-rm -f $checksum_file
-rm -f $binutils_file_name
-
-popd
+mkdir -p -m 777 /tmp/aesmd
+chmod -R -f 777 /tmp/aesmd || sudo chmod -R -f 777 /tmp/aesmd || true
+docker-compose --verbose up
