@@ -17,10 +17,17 @@ set -e
 # for details, see http://www.debian.org/doc/debian-policy/ or
 # the debian-policy package
 
+trigger_udev() {
+    if ! which udevadm &> /dev/null; then
+        return 0
+    fi
+    udevadm control --reload || :
+    udevadm trigger || :
+}
 
 case "$1" in
     configure)
-        udevadm trigger &> /dev/null || true
+        trigger_udev
         systemctl enable remount-dev-exec &> /dev/null || true
         systemctl start remount-dev-exec &> /dev/null || true
     ;;
