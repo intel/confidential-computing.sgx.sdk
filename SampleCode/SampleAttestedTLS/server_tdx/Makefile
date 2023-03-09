@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 #
 # Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
 #
@@ -30,20 +29,13 @@
 #
 #
 
-shopt -s expand_aliases
+include ../sgxenv.mk
 
-SGX_LIBRARY_PATH=@SDK_LIB_PATH@
-GDB_SGX_PLUGIN_PATH=$SGX_LIBRARY_PATH/gdb-sgx-plugin
+all: server
 
-if [ -f /usr/local/bin/gdb ]
-then
-    GDB=/usr/local/bin/gdb
-elif [ -f /usr/bin/gdb ]
-then
-    GDB=/usr/bin/gdb
-else
-    GDB=gdb
-fi
+server:
+	$(CXX) -c -DTDX_ENV -DCLIENT_USE_QVL $(App_Cpp_Flags) server.cpp openssl_server.cpp ../common/verify_callback.cpp ../common/utility.cpp ../common/openssl_utility.cpp ../common/err_msg.cpp
+	$(CXX) -o tls_server server.o openssl_server.o verify_callback.o utility.o openssl_utility.o err_msg.o $(App_Link_Flags) -lssl -ltdx_tls -lsgx_dcap_quoteverify -l:libtdx_attest.so.1
 
-export PYTHONPATH=$GDB_SGX_PLUGIN_PATH
-LD_PRELOAD=$SGX_LIBRARY_PATH/libsgx_ptrace.so $GDB -iex "directory $GDB_SGX_PLUGIN_PATH" -iex "source $GDB_SGX_PLUGIN_PATH/gdb_sgx_plugin.py" -iex "set environment LD_PRELOAD" -iex "add-auto-load-safe-path /usr/lib" -iex "source $GDB_SGX_PLUGIN_PATH/printers.py" -iex "python register_libcxx_printer_loader()" "$@"
+clean:
+	rm -f tls_server *.o
