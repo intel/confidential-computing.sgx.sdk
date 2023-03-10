@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #
-# Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
+# Copyright (C) 2022 Intel Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,22 +28,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#
 
-shopt -s expand_aliases
+set -e
+docker build --target sample_deb --build-arg https_proxy=$https_proxy \
+             --build-arg http_proxy=$http_proxy -t sgx_sample_deb -f ./Dockerfile ../../
 
-SGX_LIBRARY_PATH=@SDK_LIB_PATH@
-GDB_SGX_PLUGIN_PATH=$SGX_LIBRARY_PATH/gdb-sgx-plugin
-
-if [ -f /usr/local/bin/gdb ]
-then
-    GDB=/usr/local/bin/gdb
-elif [ -f /usr/bin/gdb ]
-then
-    GDB=/usr/bin/gdb
-else
-    GDB=gdb
-fi
-
-export PYTHONPATH=$GDB_SGX_PLUGIN_PATH
-LD_PRELOAD=$SGX_LIBRARY_PATH/libsgx_ptrace.so $GDB -iex "directory $GDB_SGX_PLUGIN_PATH" -iex "source $GDB_SGX_PLUGIN_PATH/gdb_sgx_plugin.py" -iex "set environment LD_PRELOAD" -iex "add-auto-load-safe-path /usr/lib" -iex "source $GDB_SGX_PLUGIN_PATH/printers.py" -iex "python register_libcxx_printer_loader()" "$@"
+# Another container should expose AESM and its socket in aesmd-socket volume.
+# Replace /dev/sgx_enclave with /dev/isgx if you use the Legacy Launch Control driver
+docker run --env http_proxy --env https_proxy --device=/dev/sgx_enclave -v aesmd-socket:/var/run/aesmd -it sgx_sample_deb
