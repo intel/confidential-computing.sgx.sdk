@@ -29,17 +29,31 @@
  *
  */
 
-enclave {
-    from "sgx_tstdc.edl" import *;
-    from "sgx_pthread.edl" import *;
-    untrusted {
-		int8_t u_sgxprotectedfs_check_if_file_exists([in, string] const char* filename);
-		uint8_t* u_sgxprotectedfs_exclusive_file_map([in, string] const char* filename, uint8_t read_only, [out] int64_t* file_size, [out] int32_t* error_code);
-		int32_t u_sgxprotectedfs_file_remap([in, string] const char* filename, [in, out] uint8_t** file_addr, int64_t old_size, int64_t new_size);
-		int32_t u_sgxprotectedfs_file_unmap([user_check] uint8_t* file_addr, int64_t file_size);
-		int32_t u_sgxprotectedfs_remove([in, string] const char* filename);
+/**
+ * File: ctd.h
+ * Description:
+ *     Constant-time decoder header
+ */
 
-		uint8_t u_sgxprotectedfs_fwrite_recovery_file([user_check] uint8_t* fileaddress, [in, string] const char* filename, [in, count=length] uint64_t* recovery_list, uint64_t length);
-		int32_t u_sgxprotectedfs_do_file_recovery([in, string] const char* filename, [in, string] const char* recovery_filename);
-    };
-};
+#ifndef _CTD_H_
+#define _CTD_H_
+#include "se_types.h"
+#include "sgx_trts_exception.h"
+#include "se_cpu_feature.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @brief our function to disassemble one instruction from the given input
+ * One x64 instruction has at most 15 bytes, and our current output takes 12 bytes
+ *
+ */
+int ct_decode(sgx_cpu_context_t *ctx, uint64_t *addr);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
