@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
+ * Copyright (C) 2011-2025 Intel Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,41 +28,33 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#ifndef _SHARED_OBJECT_PARSER_H_
+#define _SHARED_OBJECT_PARSER_H_
 
+#include <assert.h>
+#include <stdint.h>
+#include <string>
 
-#ifndef _CREATE_PARAM_H_
-#define _CREATE_PARAM_H_
+#include "elf_util.h"
+#include "section.h"
+#include "sgx_error.h"
+#include <vector>
 
-#include "metadata.h"
-typedef struct _create_param_t
-{
-    uint64_t          enclave_size;
-    uint64_t          stack_max_size;
-    uint64_t          stack_min_size;
-    uint64_t          stack_limit_addr;
-    uint64_t          stack_base_addr;
-    size_t            ssa_base_addr;
-    uint64_t          heap_max_size;
-    uint64_t          heap_min_size;
-    uint64_t          rsrv_max_size;
-    uint64_t          rsrv_min_size;
-    uint64_t          heap_init_size;
-    uint64_t          heap_offset;
-    uint64_t          rsrv_init_size;
-    uint64_t          rsrv_offset;
-    uint64_t          rsrv_executable;
-    uint64_t          edmm_bk_overhead;
-    uint64_t          user_region_size;
-    uint64_t          first_ssa_gpr;
-    uint64_t          td_addr;
-    uint64_t          tls_addr;
-    uint32_t          tcs_num;
-    uint32_t          tcs_max_num;
-    uint32_t          tcs_min_pool;
-    uint32_t          tcs_policy;
-    uint32_t          xsave_size;
-    uint32_t          ipp_fips_on;
-    uint32_t          ossl_fips_on;
-} create_param_t;
+class SharedObjectParser : private Uncopyable {
+public:
+    SharedObjectParser(const uint8_t* start_addr, uint64_t len);
+    ~SharedObjectParser();
+
+    sgx_status_t run_parser();
+    const uint8_t* get_start_addr() const;
+    uint64_t get_len() const;
+    const std::vector<Section *>& get_sections() const;
+
+private:
+    const uint8_t*         m_start_addr;
+    uint64_t               m_len;
+    std::vector<Section *> m_sections;
+    ElfW(Dyn)              m_dyn_info[DT_NUM + DT_ADDRNUM];
+};
 
 #endif
