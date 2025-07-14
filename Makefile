@@ -278,8 +278,8 @@ deb_sgx_pck_id_retrieval_tool_pkg:
 .PHONY: deb_sgx_ra_service_pkg
 deb_sgx_ra_service_pkg:
 	$(MAKE) -C external/dcap_source/QuoteGeneration deb_sgx_ra_service_pkg
-	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/installer/sgx-ra-service*deb ./linux/installer/deb/sgx-aesm-service/
-	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/installer/libsgx-ra-*deb ./linux/installer/deb/sgx-aesm-service/
+	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/release/installer/sgx-ra-service*deb ./linux/installer/deb/sgx-aesm-service/
+	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/release/installer/libsgx-ra-*deb ./linux/installer/deb/sgx-aesm-service/
 
 .PHONY: deb_tee_appraisal_tool
 deb_tee_appraisal_tool:
@@ -457,8 +457,8 @@ rpm_sgx_pck_id_retrieval_tool_pkg:
 .PHONY: rpm_sgx_ra_service_pkg
 rpm_sgx_ra_service_pkg:
 	$(MAKE) -C external/dcap_source/QuoteGeneration rpm_sgx_ra_service_pkg
-	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/installer/sgx-ra-service*rpm ./linux/installer/rpm/sgx-aesm-service/
-	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/installer/libsgx-ra-*rpm ./linux/installer/rpm/sgx-aesm-service/
+	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/release/installer/sgx-ra-service*rpm ./linux/installer/rpm/sgx-aesm-service/
+	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/release/installer/libsgx-ra-*rpm ./linux/installer/rpm/sgx-aesm-service/
 
 .PHONY: rpm_tee_appraisal_tool
 rpm_tee_appraisal_tool:
