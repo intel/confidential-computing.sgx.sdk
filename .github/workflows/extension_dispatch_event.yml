@@ -1,0 +1,66 @@
+name: Route branch events to external dispatcher (if any)
+# This action only runs on repositories which are named EXTENSION_THIS_REPO_NAME and have the extension dispatcher defined.
+# Its purpose is to kick-off any auxiliary GHA tasks that are NOT on the target branch, but may be required by repo/fork policy.
+
+on:
+  create:
+    branches:
+      - 'main*'
+      - 'platform/**'
+    tags:
+      - 'DCAP_*'
+      - 'dcap_*'
+      - 'sgx_*'
+  merge_group:
+    types: [checks_requested]
+  pull_request_target:
+    types: [ opened, reopened, edited, auto_merge_enabled, synchronize, converted_to_draft, locked, unlocked, ready_for_review, review_requested, review_request_removed, auto_merge_disabled ]
+    branches:
+      - '**'
+  pull_request_review:
+    types: [submitted, edited]
+  push:
+    branches:
+      - 'main*'
+      - 'platform/**'
+    tags:
+      - 'DCAP_*'
+      - 'dcap_*'
+      - 'sgx_*'
+  workflow_dispatch:
+
+jobs:
+  publish_branch_event_to_extensions:
+    name: "On branch action: emit an event for external handler, if any [ignore me, I'm not a real check]"
+    runs-on: ${{vars.EXTENSION_RUNNER_ID}}
+    if: ${{ github.repository == vars.EXTENSION_THIS_REPO_NAME && github.actor != 'Copilot' }}
+    steps:
+      - name: Trigger Extension Workflow
+        uses: actions/github-script@v5
+        env:
+          EXTENSION_DISPATCHER_WORKFLOW_NAME: ${{vars.EXTENSION_DISPATCHER_WORKFLOW_NAME}}
+          EXTENSION_BRANCH_NAME: ${{vars.EXTENSION_BRANCH_NAME}}
+          REF_NAME: ${{ github.ref_name }}
+        with:
+          script: |
+            const wf_inputs = {
+              triggering_event_name: context.eventName,
+              triggering_branch_name: context.ref,
+              triggering_branch_name_short: process.env.REF_NAME,
+              triggering_sha: context.sha,
+              triggering_action: context.payload ? context.payload.action : undefined,
+              triggering_context: JSON.stringify(context), //Future consideration: filter-out large/unnecessary properties to avoid transferring too much data
+              triggering_run_id: String(context.runId),
+              triggering_run_number: String(context.runNumber) + '-' + String(context.runAttempt || 1)
+            };
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: process.env.EXTENSION_DISPATCHER_WORKFLOW_NAME,
+              ref: process.env.EXTENSION_BRANCH_NAME,
+              inputs: wf_inputs
+            });
+
+run-name: |
+  :outbox_tray: Emit⇗⇗⇗ `${{ github.event.action && format('{0}[{1}]', github.event_name, github.event.action) ||  github.event_name }}` event. Origin: ${{ github.event_name == 'pull_request_target' && format('`{0}`[←`{1}`]', github.ref_name, github.event.pull_request.head.label) || format('`{0}`', github.ref_name) }} - ID: ${{ github.run_number }}-${{ github.run_attempt }}
