@@ -1,7 +1,7 @@
 [submodule "external/dcap_source"]
 	path = external/dcap_source
 	url = ../SGXDataCenterAttestationPrimitives
-	branch = main
+	branch = .
 [submodule "openmp"]
 	path = external/openmp/openmp_code
 	url = https://github.com/llvm-mirror/openmp.git
