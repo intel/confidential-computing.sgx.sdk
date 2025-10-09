@@ -252,6 +252,11 @@ deb_libsgx_dcap_pccs:
 	$(MAKE) -C external/dcap_source/QuoteGeneration deb_sgx_dcap_pccs_pkg
 	$(CP) external/dcap_source/QuoteGeneration/pccs/build_infrastructure/installer/linux/deb/sgx-dcap-pccs/sgx-dcap-pccs*deb ./linux/installer/deb/sgx-aesm-service/
 
+.PHONY: deb_pccs_admin_tool_pkg
+deb_pccs_admin_tool_pkg:
+	$(MAKE) -C external/dcap_source/QuoteGeneration deb_pccs_admin_tool_pkg
+	$(CP) external/dcap_source/QuoteGeneration/pccs/build_infrastructure/installer/linux/deb/*pccs-admin-tool/*pccs-admin-tool*deb ./linux/installer/deb/
+
 .PHONY: deb_libsgx_dcap_ql
 deb_libsgx_dcap_ql: deb_libsgx_pce_logic
 	$(MAKE) -C external/dcap_source/QuoteGeneration deb_sgx_dcap_ql_pkg
@@ -306,6 +311,7 @@ deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_libsgx_ae_id_enclave \
              deb_libsgx_dcap_default_qpl \
              deb_libsgx_dcap_pccs \
+             deb_pccs_admin_tool_pkg \
              deb_libsgx_dcap_ql \
              deb_libsgx_ae_qve \
              deb_sgx_dcap_quote_verify \
@@ -437,6 +443,11 @@ rpm_libsgx_dcap_pccs:
 	$(MAKE) -C external/dcap_source/QuoteGeneration rpm_sgx_dcap_pccs_pkg
 	$(CP) external/dcap_source/QuoteGeneration/pccs/build_infrastructure/installer/linux/rpm/sgx-dcap-pccs/sgx-dcap-pccs*.rpm ./linux/installer/rpm/sgx-aesm-service/
 
+.PHONY: rpm_pccs_admin_tool_pkg
+rpm_pccs_admin_tool_pkg:
+	$(MAKE) -C external/dcap_source/QuoteGeneration rpm_pccs_admin_tool_pkg
+	$(CP) external/dcap_source/QuoteGeneration/pccs/build_infrastructure/installer/linux/rpm/*pccs-admin-tool/*pccs-admin-tool*.rpm ./linux/installer/rpm/
+
 .PHONY: rpm_libsgx_dcap_ql
 rpm_libsgx_dcap_ql:
 	$(MAKE) -C external/dcap_source/QuoteGeneration rpm_sgx_dcap_ql_pkg
@@ -491,6 +502,7 @@ rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_libsgx_ae_id_enclave \
              rpm_libsgx_dcap_default_qpl \
              rpm_libsgx_dcap_pccs \
+             rpm_pccs_admin_tool_pkg \
              rpm_libsgx_dcap_ql \
              rpm_libsgx_ae_qve \
              rpm_sgx_dcap_quote_verify \
