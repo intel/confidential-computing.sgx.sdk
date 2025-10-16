@@ -352,7 +352,7 @@ strtodg
 	Long L;
 	U adj, rv;
 	ULong *b, *be, y, z;
-	Bigint *ab, *bb, *bb1, *bd, *bd0, *bs, *delta, *rvb, *rvb0;
+	Bigint *ab = NULL, *bb = NULL, *bb1 = NULL, *bd = NULL, *bd0 = NULL, *bs = NULL, *delta = NULL, *rvb = NULL, *rvb0 = NULL;
 #ifdef USE_LOCALE /*{{*/
 #ifdef NO_LOCALE_CACHE
 	char *decimalpoint = localeconv()->decimal_point;
@@ -755,17 +755,17 @@ strtodg
 	for(;;) {
 		bd = Balloc(bd0->k);
 		if (bd == NULL)
-			return (STRTOG_NoMemory);
+			goto cleanup_and_return_nomem;
 		Bcopy(bd, bd0);
 		bb = Balloc(rvb->k);
 		if (bb == NULL)
-			return (STRTOG_NoMemory);
+			goto cleanup_and_return_nomem;
 		Bcopy(bb, rvb);
 		bbbits = rvbits - bb0;
 		bbe = rve + bb0;
 		bs = i2b(1);
 		if (bs == NULL)
-			return (STRTOG_NoMemory);
+			goto cleanup_and_return_nomem;
 
 		if (e >= 0) {
 			bb2 = bb5 = 0;
@@ -797,10 +797,10 @@ strtodg
 		if (bb5 > 0) {
 			bs = pow5mult(bs, bb5);
 			if (bs == NULL)
-				return (STRTOG_NoMemory);
+				goto cleanup_and_return_nomem;
 			bb1 = mult(bs, bb);
 			if (bb1 == NULL)
-				return (STRTOG_NoMemory);
+				goto cleanup_and_return_nomem;
 			Bfree(bb);
 			bb = bb1;
 			}
@@ -808,30 +808,30 @@ strtodg
 		if (bb2 > 0) {
 			bb = lshift(bb, bb2);
 			if (bb == NULL)
-				return (STRTOG_NoMemory);
+				goto cleanup_and_return_nomem;
 			}
 		else if (bb2 < 0)
 			rshift(bb, -bb2);
 		if (bd5 > 0) {
 			bd = pow5mult(bd, bd5);
 			if (bd == NULL)
-				return (STRTOG_NoMemory);
+				goto cleanup_and_return_nomem;
 			}
 		if (bd2 > 0) {
 			bd = lshift(bd, bd2);
 			if (bd == NULL)
-				return (STRTOG_NoMemory);
+				goto cleanup_and_return_nomem;
 			}
 		if (bs2 > 0) {
 			bs = lshift(bs, bs2);
 			if (bs == NULL)
-				return (STRTOG_NoMemory);
+				goto cleanup_and_return_nomem;
 			}
 		asub = 1;
 		inex = STRTOG_Inexhi;
 		delta = diff(bb, bd);
 		if (delta == NULL)
-			return (STRTOG_NoMemory);
+			goto cleanup_and_return_nomem;
 		if (delta->wds <= 1 && !delta->x[0])
 			break;
 		dsign = delta->sign;
@@ -991,13 +991,13 @@ strtodg
 			}
 		ab = d2b(dval(&adj), &abe, &abits);
 		if (ab == NULL)
-			return (STRTOG_NoMemory);
+			goto cleanup_and_return_nomem;
 		if (abe < 0)
 			rshift(ab, -abe);
 		else if (abe > 0) {
 			ab = lshift(ab, abe);
 			if (ab == NULL)
-				return (STRTOG_NoMemory);
+				goto cleanup_and_return_nomem;
 			}
 		rvb0 = rvb;
 		if (asub) {
@@ -1005,7 +1005,7 @@ strtodg
 			j = hi0bits(rvb->x[rvb->wds-1]);
 			rvb = diff(rvb, ab);
 			if (rvb == NULL)
-				return (STRTOG_NoMemory);
+				goto cleanup_and_return_nomem;
 			k = rvb0->wds - 1;
 			if (denorm)
 				/* do nothing */;
@@ -1020,7 +1020,7 @@ strtodg
 				else {
 					rvb = lshift(rvb, 1);
 					if (rvb == NULL)
-						return (STRTOG_NoMemory);
+						goto cleanup_and_return_nomem;
 					--rve;
 					--rve1;
 					L = finished = 0;
@@ -1030,7 +1030,7 @@ strtodg
 		else {
 			rvb = sum(rvb, ab);
 			if (rvb == NULL)
-				return (STRTOG_NoMemory);
+				goto cleanup_and_return_nomem;
 			k = rvb->wds - 1;
 			if (k >= rvb0->wds
 			 || hi0bits(rvb->x[k]) < hi0bits(rvb0->x[k])) {
@@ -1077,7 +1077,7 @@ strtodg
 		if (j > 0) {
 			rvb = lshift(rvb, j);
 			if (rvb == NULL)
-				return (STRTOG_NoMemory);
+				goto cleanup_and_return_nomem;
 			}
 		else
 			rshift(rvb, -j);
@@ -1122,6 +1122,7 @@ strtodg
  infnanexp:
 		*exp = fpi->emax + 1;
 		}
+
  ret:
 	if (denorm) {
 		if (sudden_underflow) {
@@ -1153,4 +1154,16 @@ strtodg
 		Bfree(rvb);
 		}
 	return irv;
-	}
+
+ cleanup_and_return_nomem:
+	if (ab) { Bfree(ab); ab = NULL; }
+	if (rvb0) { Bfree(rvb0); rvb0 = NULL; }
+	if (bb) { Bfree(bb); bb = NULL; }
+	if (bb1) { Bfree(bb1); bb1 = NULL; }
+	if (bd) { Bfree(bd); bd = NULL; }
+	if (bs) { Bfree(bs); bs = NULL; }
+	if (bd0) { Bfree(bd0); bd0 = NULL; }
+	if (delta) { Bfree(delta); delta = NULL; }
+	if (rvb) { Bfree(rvb); rvb = NULL; }
+	return (STRTOG_NoMemory);
+}
