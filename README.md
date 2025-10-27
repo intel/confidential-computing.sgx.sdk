@@ -9,7 +9,6 @@ Intel(R) Software Guard Extensions for Linux\* OS
 * [Contributing](#contributing)
 * [Documentation](#documentation)
 * [Quick Start with Docker and Docker Compose](#quick-start-with-docker-and-docker-compose)
-* [Build and Install the Intel(R) SGX Driver](#build-and-install-the-intelr-sgx-driver)
 * [Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package](#build-the-intelr-sgx-sdk-and-intelr-sgx-psw-package)
     * [Prerequisites](#prerequisites)
     * [Build the Intel(R) SGX SDK and Intel(R) SGX SDK Installer](#build-the-intelr-sgx-sdk-and-intelr-sgx-sdk-installer)
@@ -78,11 +77,6 @@ $ cd docker/build && ./build_compose_run.sh
 ```
 $ cd linux/installer/docker && ./build_compose_run.sh
 ```
-
-Build and Install the Intel(R) SGX Driver
------------------------------------------
-Follow the [README.md](https://github.com/intel/SGXDataCenterAttestationPrimitives/blob/master/driver/linux/README.md) in the [SGXDataCenterAttestationPrimitives](https://github.com/intel/SGXDataCenterAttestationPrimitives/) project to build and install the Intel(R) SGX driver.
-**NOTE**: The above Intel(R) SGX driver requires *Flexible Launch Control* and *Intel(R) AES New Instructions* support. If your platform doesn't meet the requirement, please follow  the instructions in the [linux-sgx-driver](https://github.com/intel/linux-sgx-driver) project to build and install this version of Intel(R) SGX driver.
 
 Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
 -------------------------------------------------------
