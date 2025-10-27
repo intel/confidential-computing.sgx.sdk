@@ -119,10 +119,10 @@ $(LIBNAME): $(OBJ)
 
 $(LIBNAME_TDX): $(OBJ_TDX)
 	$(AR) rs $@ $(OBJ_TDX)
-	$(MKDIR) $(BUILD_DIR)/.libcbor
-	$(RM) $(BUILD_DIR)/.libcbor/* && cd $(BUILD_DIR)/.libcbor && $(AR) x $(LIBCBOR_PATH)/$(LIBCBOR)
-	$(AR) rs $@ $(BUILD_DIR)/.libcbor/*.o
-	@$(RM) -r $(BUILD_DIR)/.libcbor
+	$(MKDIR) $(BUILD_DIR)/.tdx_cbor
+	$(RM) $(BUILD_DIR)/.tdx_cbor/* && cd $(BUILD_DIR)/.tdx_cbor && $(AR) x $(LIBCBOR_PATH)/$(LIBCBOR)
+	$(AR) rs $@ $(BUILD_DIR)/.tdx_cbor/*.o
+	@$(RM) -r $(BUILD_DIR)/.tdx_cbor
 
 $(OBJ): $(TLSNAME)_t.h cbor_trusted
 $(OBJ): %.o : %.cpp

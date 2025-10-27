@@ -232,8 +232,12 @@ else
 	$(MAKE) -C $(LINUX_EXTERNAL_DIR)/protobuf
 endif
 
+.PHONY: cbor_untrusted
+cbor_untrusted:
+	$(MAKE) -C $(LINUX_EXTERNAL_DIR)/cbor cbor_untrusted
+
 .PHONY: ttls
-ttls: edger8r
+ttls: edger8r cbor_untrusted
 	$(MAKE) -C ttls
 
 # ---------------------------------------------------
@@ -256,7 +260,7 @@ sample_crypto:
 	$(MAKE) -C sample_libcrypto
 
 .PHONY: utls
-utls:
+utls: cbor_untrusted
 	$(MAKE) -C utls
 
 # ---------------------------------------------------
@@ -337,6 +341,7 @@ clean:
 	$(MAKE) -C pthread                             clean
 	$(MAKE) -C $(LINUX_EXTERNAL_DIR)/openmp        clean
 	$(MAKE) -C $(LINUX_EXTERNAL_DIR)/protobuf      clean
+	$(MAKE) -C $(LINUX_EXTERNAL_DIR)/cbor          clean
 	$(MAKE) -C ttls						           clean
 	$(MAKE) -C utls						           clean
 	@$(RM) $(LIBTLIBC) $(LIBTCXX) $(LIBTSE)
