@@ -82,15 +82,13 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
 -------------------------------------------------------
 ### Prerequisites:
 - Ensure that you have one of the following required operating systems:
-  * Ubuntu\* 20.04 LTS Desktop 64bits
-  * Ubuntu\* 20.04 LTS Server 64bits
   * Ubuntu\* 22.04 LTS Server 64bits
   * Ubuntu\* 24.04 LTS Server 64bits
-  * Red Hat Enterprise Linux Server release 9.2 64bits
+  * Red Hat Enterprise Linux Server release 9.4 64bits
   * CentOS Stream 9 64bits
-  * CentOS 8.3 64bits
-  * SUSE Linux Enterprise Server 15.4 64bits
-  * Anolis OS 8.6 64bits
+  * SUSE Linux Enterprise Server 15.6 64bits
+  * Anolis OS 8.10 64bits
+  * Azure Linux 3.0 64bits
   * Debian 10 64bits
   * Debian 12 64bits
 
@@ -100,11 +98,11 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
     $ sudo apt-get install build-essential ocaml ocamlbuild automake autoconf libtool wget python3 libssl-dev git cmake perl
     $ sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1
   ```
-  * On Ubuntu 20.04, Ubuntu 22.04 and Ubuntu 24.04:
+  * On Ubuntu 22.04 and Ubuntu 24.04:
   ```
     $ sudo apt-get install build-essential ocaml ocamlbuild automake autoconf libtool wget python-is-python3 libssl-dev git cmake perl
   ```
-  * On Red Hat Enterprise Linux 9.2:
+  * On Red Hat Enterprise Linux 9.4:
   ```
     $ sudo yum groupinstall 'Development Tools'
     $ sudo yum install ocaml ocaml-ocamlbuild wget python3 openssl-devel git cmake perl
@@ -114,19 +112,18 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
     $ sudo dnf group install 'Development Tools'
     $ sudo dnf install ocaml ocaml-ocamlbuild redhat-rpm-config openssl-devel wget rpm-build git cmake perl python3
   ```  
-  * On CentOS 8.3:
+  * On Anolis 8.10:
   ```
     $ sudo dnf group install 'Development Tools'
     $ sudo dnf --enablerepo=powertools install ocaml ocaml-ocamlbuild redhat-rpm-config openssl-devel wget rpm-build git cmake perl python3
     $ sudo alternatives --set python /usr/bin/python3
   ```
-  * On Anolis 8.6:
+  * On Azure Linux 3.0:
   ```
     $ sudo dnf group install 'Development Tools'
-    $ sudo dnf --enablerepo=PowerTools install ocaml ocaml-ocamlbuild redhat-rpm-config openssl-devel wget rpm-build git cmake perl python3
-    $ sudo alternatives --set python /usr/bin/python3
+    $ sudo dnf install ocaml ocaml-ocamlbuild redhat-rpm-config openssl-devel wget rpm-build git cmake perl python3
   ```
-  * On SUSE Linux Enterprise Server 15.4:
+  * On SUSE Linux Enterprise Server 15.6:
   ```
     $ sudo zypper install --type pattern devel_basis
     $ sudo zypper install ocaml ocaml-ocamlbuild automake autoconf libtool wget python3 libopenssl-devel rpm-build git cmake perl
@@ -139,11 +136,11 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
       ```
         $ sudo apt-get install libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev debhelper cmake reprepro unzip  pkgconf libboost-dev libboost-system-dev libboost-thread-dev lsb-release libsystemd0
       ```
-      * On Ubuntu 20.04, Ubuntu 22.04 and Ubuntu 24.04:
+      * On Ubuntu 22.04 and Ubuntu 24.04:
       ```
         $ sudo apt-get install libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev debhelper cmake reprepro unzip pkgconf libboost-dev libboost-system-dev libboost-thread-dev lsb-release libsystemd0
       ```
-      * On Red Hat Enterprise Linux 9.2:
+      * On Red Hat Enterprise Linux 9.4:
       ```
         $ sudo yum install openssl-devel libcurl-devel protobuf-devel cmake rpm-build createrepo yum-utils pkgconf boost-devel protobuf-lite-devel systemd-libs
       ```
@@ -151,15 +148,15 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
       ```
         $ sudo dnf install openssl-devel libcurl-devel protobuf-devel cmake rpm-build createrepo yum-utils pkgconf boost-devel protobuf-lite-devel systemd-libs
       ```      
-      * On CentOS 8.3:
-      ```
-        $ sudo dnf --enablerepo=powertools install openssl-devel libcurl-devel protobuf-devel cmake rpm-build createrepo yum-utils pkgconf boost-devel protobuf-lite-devel systemd-libs
-      ```
-      * On Anolis 8.6:
+      * On Anolis 8.10:
       ```
         $ sudo dnf --enablerepo=PowerTools install openssl-devel libcurl-devel protobuf-devel cmake rpm-build createrepo yum-utils pkgconf boost-devel protobuf-lite-devel systemd-libs
       ```
-      * On SUSE Linux Enterprise Server 15.4:
+      * On Azure Linux 3.0:
+      ```
+        $ sudo dnf --enablerepo=powertools install openssl-devel libcurl-devel protobuf-devel cmake rpm-build createrepo yum-utils pkgconf boost-devel protobuf-lite-devel systemd-libs
+      ```
+      * On SUSE Linux Enterprise Server 15.6:
       ```
         $ sudo zypper install libopenssl-devel libcurl-devel protobuf-devel cmake rpm-build createrepo_c libsystemd0 libboost_system1_66_0-devel libboost_thread1_66_0-devel
       ```
@@ -251,7 +248,7 @@ You can find the tools and libraries generated in the `build/linux` directory.
   $ make
 ```
 - To build the Intel(R) SGX PSW installer, enter the following command:
-  * On Ubuntu 20.04, Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12:
+  * On Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12:
    ```
   $ make deb_psw_pkg
   ```
@@ -264,7 +261,7 @@ You can find the tools and libraries generated in the `build/linux` directory.
   ```
   $ make deb_psw_pkg DEBUG=1
   ```
-  * On Red Hat Enterprise Linux 9.2, CentOS Stream 9, CentOS 8.3, Anolis OS 8.6 and SUSE Linux Enterprise Server 15.4:
+  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9, Anolis OS 8.10 and SUSE Linux Enterprise Server 15.6:
   ```
   $ make rpm_psw_pkg
   ```
@@ -318,20 +315,20 @@ You can find the tools and libraries generated in the `build/linux` directory.
   **Note**: The above command builds the local package repository. If you want to use it, you need to add it to the system repository configuration. Since the local package repository is not signed with GPG, you should ignore the gpgcheck when installing the packages.
 
 - To add the local RPM package repository to the system repository configuration, you can use the following command. You need to replace PATH_TO_LOCAL_REPO with the proper path on your system:
-  * On Red Hat Enterprise Linux 9.2, CentOS Stream 9, CentOS 8.3, Anolis OS 8.6:
+  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9, Azure Linux 3.0, Anolis OS 8.10:
   ```
   $ sudo yum-config-manager --add-repo file://PATH_TO_LOCAL_REPO
   ```
-  * On SUSE Linux Enterprise Server 15.4, you need to replace LOCAL_REPO_ALIAS with proper alias name for the local repo:
+  * On SUSE Linux Enterprise Server 15.6, you need to replace LOCAL_REPO_ALIAS with proper alias name for the local repo:
   ```
   $ sudo zypper addrepo PATH_TO_LOCAL_REPO LOCAL_REPO_ALIAS
   ```
 - To ignore the gpgcheck when you install the package, enter the following command:
-  * On Red Hat Enterprise Linux 9.2, CentOS Stream 9, CentOS 8.3, Anolis OS 8.6:
+  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9, Azure Linux 3.0, Anolis OS 8.10:
   ```
   $ sudo yum --nogpgcheck install <package>
   ```
-  * On SUSE Linux Enterprise Server 15.4:
+  * On SUSE Linux Enterprise Server 15.6:
   ```
   $ sudo zypper --no-gpg-checks install <package>
   ```
@@ -340,15 +337,13 @@ Install the Intel(R) SGX SDK
 ------------------------
 ### Prerequisites
 - Ensure that you have one of the following operating systems:
-  * Ubuntu\* 20.04 LTS Desktop 64bits
-  * Ubuntu\* 20.04 LTS Server 64bits
   * Ubuntu\* 22.04 LTS Server 64bits
   * Ubuntu\* 24.04 LTS Server 64bits
-  * Red Hat Enterprise Linux Server release 9.2 64bits
+  * Red Hat Enterprise Linux Server release 9.4 64bits
   * CentOS Stream 9 64bits
-  * CentOS 8.3 64bits
-  * SUSE Linux Enterprise Server 15.4 64bits
-  * Anolis OS 8.6 64bits
+  * SUSE Linux Enterprise Server 15.6 64bits
+  * Anolis OS 8.10 64bits
+  * Azure Linux 3.0 64bits
   * Debian 10 64bits
   * Debian 12 64bits
 - Use the following command to install the required tool to use Intel(R) SGX SDK:
@@ -357,22 +352,22 @@ Install the Intel(R) SGX SDK
     $ sudo apt-get install build-essential python3
     $ sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1
   ```
-   * On Ubuntu 20.04, Ubuntu 22.04 and Ubuntu 24.04:
+   * On Ubuntu 22.04 and Ubuntu 24.04:
   ```
     $ sudo apt-get install build-essential python-is-python3
   ```
-  * On Red Hat Enterprise Linux 9.2 and CentOS Stream 9:
+  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9 and Azure Linux 3.0:
   ```
      $ sudo yum groupinstall 'Development Tools'
      $ sudo yum install python3
   ```
-  * On CentOS 8.3 and Anolis OS 8.6:
+  * On Anolis OS 8.10:
   ```
      $ sudo yum groupinstall 'Development Tools'
      $ sudo yum install python3
      $ sudo alternatives --set python /usr/bin/python3
   ```
-  * On SUSE Linux Enterprise Server 15.4:
+  * On SUSE Linux Enterprise Server 15.6:
   ```
      $ sudo zypper install --type pattern devel_basis
      $ sudo zypper install python3
@@ -432,15 +427,13 @@ Install the Intel(R) SGX PSW
 ----------------------------
 ### Prerequisites
 - Ensure that you have one of the following operating systems:
-  * Ubuntu\* 20.04 LTS Desktop 64bits
-  * Ubuntu\* 20.04 LTS Server 64bits
   * Ubuntu\* 22.04 LTS Server 64bits
   * Ubuntu\* 24.04 LTS Server 64bits
-  * Red Hat Enterprise Linux Server release 9.2 64bits
+  * Red Hat Enterprise Linux Server release 9.4 64bits
   * CentOS Stream 9 64bits
-  * CentOS 8.3 64bits
-  * SUSE Linux Enterprise Server 15.4 64bits
-  * Anolis OS 8.6 64bits
+  * SUSE Linux Enterprise Server 15.6 64bits
+  * Anolis OS 8.10 64bits
+  * Azure Linux 3.0 64bits
   * Debian 10 64bits
   * Debian 12 64bits
 - Ensure that you have a system with the following required hardware:
@@ -448,11 +441,11 @@ Install the Intel(R) SGX PSW
 - Configure the system with the **Intel SGX hardware enabled** option and install Intel(R) SGX driver in advance.
   See the earlier topic, *Build and Install the Intel(R) SGX Driver*, for information on how to install the Intel(R) SGX driver.
 - Install the library using the following command:
-  * On Ubuntu 20.04, Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12:
+  * On Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12:
   ```
     $ sudo apt-get install libssl-dev libcurl4-openssl-dev libprotobuf-dev
   ```
-  * On Red Hat Enterprise Linux 9.2:
+  * On Red Hat Enterprise Linux 9.4:
   ```
     $ sudo yum install openssl-devel libcurl-devel protobuf-devel
   ```
@@ -460,15 +453,15 @@ Install the Intel(R) SGX PSW
   ```
     $ sudo dnf install libcurl-devel protobuf-devel
   ```
-  * On CentOS 8.3:
-  ```
-    $ sudo dnf --enablerepo=powertools install libcurl-devel protobuf-devel
-  ```
-  * On Anolis OS 8.6:
+  * On Anolis OS 8.10:
   ```
     $ sudo dnf --enablerepo=PowerTools install libcurl-devel protobuf-devel
   ```
-  * On SUSE Linux Enterprise Server 15.4:
+  * On Azure Linux 3.0:
+  ```
+    $ sudo dnf --enablerepo=powertools install libcurl-devel protobuf-devel
+  ```
+  * On SUSE Linux Enterprise Server 15.6:
   ```
     $ sudo zypper install libopenssl-devel libcurl-devel protobuf-devel
   ```
@@ -478,7 +471,7 @@ The SGX PSW provides 3 services: launch, EPID-based attestation, and algorithm a
 
 #### Using the local repo(recommended)
 
-|   |Ubuntu 20.04, Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12|Red Hat Enterprise Linux 9.2, CentOS Stream 9, CentOS 8.3 and Anolis OS 8.6| SUSE Linux Enterprise Server 15|
+|   |Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12|Red Hat Enterprise Linux 9.4, CentOS Stream 9, Anolis OS 8.10, and Azure Linux 3.0| SUSE Linux Enterprise Server 15|
 | ------------ | ------------ | ------------ | ------------ |
 |launch service |apt-get install libsgx-launch libsgx-urts|yum install libsgx-launch libsgx-urts|zypper install libsgx-launch libsgx-urts|
 |EPID-based attestation service|apt-get install libsgx-epid libsgx-urts|yum install libsgx-epid libsgx-urts|zypper install libsgx-epid libsgx-urts|
@@ -503,11 +496,11 @@ Some packages are configured with recommended dependency on other packages that 
 ```
   --no-install-recommends
 ```
-* On Red Hat Enterprise Linux 9.2, CentOS Stream 9, CentOS 8.3 and Anolis OS 8.6:
+* On Red Hat Enterprise Linux 9.4, CentOS Stream 9, and Anolis OS 8.10:
 ```
   --setopt=install_weak_deps=False
 ```
-* On SUSE Linux Enterprise Server 15.4:
+* On SUSE Linux Enterprise Server 15.6:
 ```
   --no-recommends
 ```
