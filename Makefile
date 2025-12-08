@@ -56,6 +56,7 @@ preparation:
 	./external/dcap_source/QuoteVerification/prepare_sgxssl.sh nobuild
 	cd external/openmp/openmp_code && git apply ../0001-Enable-OpenMP-in-SGX.patch >/dev/null 2>&1 ||  git apply ../0001-Enable-OpenMP-in-SGX.patch --check -R
 	cd external/protobuf/protobuf_code && git apply ../sgx_protobuf.patch >/dev/null 2>&1 ||  git apply ../sgx_protobuf.patch --check -R
+	cd external/protobuf/protobuf_code && git apply ../0001-bumped-protobuf-to-1.33.0.patch >/dev/null 2>&1 ||  git apply ../0001-bumped-protobuf-to-1.33.0.patch --check -R
 	cd external/protobuf/protobuf_code && git submodule update --init --recursive && cd third_party/abseil-cpp && git apply ../../../sgx_abseil.patch>/dev/null 2>&1 || git apply ../../../sgx_abseil.patch --check -R
 	./external/sgx-emm/create_symlink.sh
 	cd external/cbor && cp -r libcbor sgx_libcbor

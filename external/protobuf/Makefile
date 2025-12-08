@@ -81,7 +81,7 @@ endif
 
 $(LIBPB): $(CHECK_SOURCE)
 ifeq ("$(wildcard $(PB_DIR)/src/file_lists_for_sgx.cmake)", "")
-	cd $(PB_DIR) && git apply ../sgx_protobuf.patch && git submodule update --init --recursive && cd $(ABSEIL_DIR) && git apply ../../../sgx_abseil.patch && cd ../../..
+	cd $(PB_DIR) && git apply ../sgx_protobuf.patch && git apply ../0001-bumped-protobuf-to-1.33.0.patch && git submodule update --init --recursive && cd $(ABSEIL_DIR) && git apply ../../../sgx_abseil.patch && cd ../../..
 endif
 	$(MKDIR) protobuf_code/final_tlibPB/build && cd protobuf_code/final_tlibPB/build && cmake $(PB_CONFIG) -Dprotobuf_BUILD_TESTS=FALSE -DSGX=TRUE ../../ -B . && make libprotobuf
 
