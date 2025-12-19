@@ -448,8 +448,8 @@ exception_handling_end:
             thread_data->exception_flag == -1)
         {
             // The #PF wasn't handled by EDMM or a custom #PF handler, but
-            // if AEX-Notify is enabled the #PF will still be "handled" by
-            // the AEX-Notify mitigation.
+            // since do_aex_mitigation == 1 here (AEX-Notify enabled), the #PF
+            // will still be "handled" by the AEX-Notify mitigation.
             thread_data->exception_flag = 0;
         }
 
