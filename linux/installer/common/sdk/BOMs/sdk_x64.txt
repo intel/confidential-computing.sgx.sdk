@@ -7,7 +7,6 @@ DeliveryName	InstallName	FileCheckSum	FileFeature	FileOwner
 <deliverydir>/build/linux/gdb-sgx-plugin/printers.py	<installdir>/package/lib64/gdb-sgx-plugin/printers.py	0	main	STP
 <deliverydir>/build/linux/libsgx_ptrace.so	<installdir>/package/lib64/libsgx_ptrace.so	0	main	STP
 <deliverydir>/build/linux/libsgx_tcrypto.a	<installdir>/package/lib64/libsgx_tcrypto.a	0	main	STP
-<deliverydir>/build/linux/libsgx_tkey_exchange.a	<installdir>/package/lib64/libsgx_tkey_exchange.a	0	main	STP
 <deliverydir>/build/linux/libsgx_trts.a	<installdir>/package/lib64/libsgx_trts.a	0	main	STP
 <deliverydir>/build/linux/libsgx_trts_sim.a	<installdir>/package/lib64/libsgx_trts_sim.a	0	main	STP
 <deliverydir>/build/linux/libsgx_ossl_fips.a	<installdir>/package/lib64/libsgx_ossl_fips.a	0	main	STP
@@ -18,15 +17,12 @@ DeliveryName	InstallName	FileCheckSum	FileFeature	FileOwner
 <deliverydir>/build/linux/libsgx_tcmalloc.a	<installdir>/package/lib64/libsgx_tcmalloc.a	0	main	STP
 <deliverydir>/build/linux/libsgx_tswitchless.a	<installdir>/package/lib64/libsgx_tswitchless.a	0	main	STP
 <deliverydir>/build/linux/libsgx_uswitchless.a	<installdir>/package/lib64/libsgx_uswitchless.a	0	main	STP
-<deliverydir>/build/linux/libsgx_epid_deploy.so	<installdir>/package/lib64/libsgx_epid.so	0	main	STP
-<deliverydir>/build/linux/libsgx_epid_sim.so	<installdir>/package/lib64/libsgx_epid_sim.so	0	main	STP
 <deliverydir>/build/linux/libsgx_launch_deploy.so	<installdir>/package/lib64/libsgx_launch.so	0	main	STP
 <deliverydir>/build/linux/libsgx_launch_sim.so	<installdir>/package/lib64/libsgx_launch_sim.so	0	main	STP
 <deliverydir>/build/linux/libsgx_quote_ex_deploy.so	<installdir>/package/lib64/libsgx_quote_ex.so	0	main	STP
 <deliverydir>/build/linux/libsgx_quote_ex_sim.so	<installdir>/package/lib64/libsgx_quote_ex_sim.so	0	main	STP
 <deliverydir>/build/linux/libsgx_uae_service_deploy.so	<installdir>/package/lib64/libsgx_uae_service.so	0	main	STP
 <deliverydir>/build/linux/libsgx_uae_service_sim.so	<installdir>/package/lib64/libsgx_uae_service_sim.so	0	main	STP
-<deliverydir>/build/linux/libsgx_ukey_exchange.a	<installdir>/package/lib64/libsgx_ukey_exchange.a	0	main	STP
 <deliverydir>/build/linux/libsgx_capable.a	<installdir>/package/lib64/libsgx_capable.a	0	main	STP
 <deliverydir>/build/linux/libsgx_capable.so	<installdir>/package/lib64/libsgx_capable.so	0	main	STP
 <deliverydir>/build/linux/libsgx_uprotected_fs.a	<installdir>/package/lib64/libsgx_uprotected_fs.a	0	main	STP
@@ -50,12 +46,10 @@ DeliveryName	InstallName	FileCheckSum	FileFeature	FileOwner
 <deliverydir>/external/dcap_source/QuoteGeneration/build/linux/libsgx_dcap_tvl.a	<installdir>/package/lib64/libsgx_dcap_tvl.a	0	main	STP
 <deliverydir>/linux/installer/common/sdk/installConfig.x64	<installdir>/scripts/installConfig	0	main	STP
 <deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_uae_service_sim.pc	<installdir>/package/pkgconfig/libsgx_uae_service_sim.pc	0	main	STP
-<deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_epid_sim.pc	<installdir>/package/pkgconfig/libsgx_epid_sim.pc	0	main	STP
 <deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_launch_sim.pc	<installdir>/package/pkgconfig/libsgx_launch_sim.pc	0	main	STP
 <deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_quote_ex_sim.pc	<installdir>/package/pkgconfig/libsgx_quote_ex_sim.pc	0	main	STP
 <deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_urts_sim.pc	<installdir>/package/pkgconfig/libsgx_urts_sim.pc	0	main	STP
 <deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_uae_service.pc	<installdir>/package/pkgconfig/libsgx_uae_service.pc	0	main	STP
-<deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_epid.pc	<installdir>/package/pkgconfig/libsgx_epid.pc	0	main	STP
 <deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_launch.pc	<installdir>/package/pkgconfig/libsgx_launch.pc	0	main	STP
 <deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_quote_ex.pc	<installdir>/package/pkgconfig/libsgx_quote_ex.pc	0	main	STP
 <deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_urts.pc	<installdir>/package/pkgconfig/libsgx_urts.pc	0	main	STP

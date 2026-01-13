@@ -33,3 +33,5 @@ redist.txt
 # directory created when running reproducibility scripts
 linux/reproducibility/code_dir/
 
+# IDE files
+.idea/

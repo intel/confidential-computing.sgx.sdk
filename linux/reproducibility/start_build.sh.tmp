@@ -116,10 +116,6 @@ build_ae()
     cp le.so $ae_out
     cd $sgx_repo/psw/ae/pce && make
     cp pce.so $ae_out
-    cd $sgx_repo/psw/ae/pve && make
-    cp pve.so $ae_out
-    cd $sgx_repo/psw/ae/qe && make
-    cp qe.so $ae_out
     cd $sgx_repo/external/dcap_source/QuoteGeneration/quote_wrapper/quote/enclave/linux && make
     cp qe3.so $ae_out
     cd $sgx_repo/external/dcap_source/QuoteGeneration/quote_wrapper/quote/id_enclave/linux && make

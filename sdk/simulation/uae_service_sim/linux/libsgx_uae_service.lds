@@ -1,14 +1,6 @@
 {
 global:
     get_launch_token;
-    sgx_init_quote;
-    sgx_get_quote_size;
-    sgx_get_quote;
-    sgx_get_ps_cap;
-    sgx_report_attestation_status;
-    sgx_check_update_status;
-    sgx_get_extended_epid_group_id;
-    sgx_calc_quote_size;
     sgx_get_whitelist_size;
     sgx_get_whitelist;
     sgx_register_wl_cert_chain;

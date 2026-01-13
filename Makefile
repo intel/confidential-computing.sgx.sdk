@@ -197,10 +197,6 @@ deb_libsgx_pce_logic: psw
 deb_sgx_aesm_service: psw deb_libsgx_pce_logic
 	./linux/installer/deb/sgx-aesm-service/build.sh
 
-.PHONY: deb_libsgx_epid
-deb_libsgx_epid: psw
-	./linux/installer/deb/libsgx-epid/build.sh
-
 .PHONY: deb_libsgx_launch
 deb_libsgx_launch: psw
 	./linux/installer/deb/libsgx-launch/build.sh
@@ -231,7 +227,6 @@ deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_libsgx_qe3_logic \
              deb_libsgx_pce_logic \
              deb_sgx_aesm_service \
-             deb_libsgx_epid \
              deb_libsgx_launch \
              deb_libsgx_quote_ex \
              deb_libsgx_uae_service \
@@ -302,7 +297,6 @@ deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_libsgx_qe3_logic \
              deb_libsgx_pce_logic \
              deb_sgx_aesm_service \
-             deb_libsgx_epid \
              deb_libsgx_launch \
              deb_libsgx_quote_ex \
              deb_libsgx_uae_service \
@@ -383,10 +377,6 @@ rpm_libsgx_qe3_logic: psw
 rpm_sgx_aesm_service: psw
 	./linux/installer/rpm/sgx-aesm-service/build.sh
 
-.PHONY: rpm_libsgx_epid
-rpm_libsgx_epid: psw
-	./linux/installer/rpm/libsgx-epid/build.sh
-
 .PHONY: rpm_libsgx_launch
 rpm_libsgx_launch: psw
 	./linux/installer/rpm/libsgx-launch/build.sh
@@ -421,7 +411,6 @@ rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_libsgx_pce_logic \
              rpm_libsgx_qe3_logic \
              rpm_sgx_aesm_service \
-             rpm_libsgx_epid \
              rpm_libsgx_launch \
              rpm_libsgx_quote_ex \
              rpm_libsgx_uae_service \
@@ -493,7 +482,6 @@ rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_libsgx_pce_logic \
              rpm_libsgx_qe3_logic \
              rpm_sgx_aesm_service \
-             rpm_libsgx_epid \
              rpm_libsgx_launch \
              rpm_libsgx_quote_ex \
              rpm_libsgx_uae_service \
@@ -528,7 +516,6 @@ clean:
 	@$(RM)   -r linux/installer/bin/install-sgx-*.bin*.withLicense
 	@$(RM)   -r linux/installer/bin/sgx_linux*.bin
 	./linux/installer/deb/sgx-aesm-service/clean.sh
-	./linux/installer/deb/libsgx-epid/clean.sh
 	./linux/installer/deb/libsgx-launch/clean.sh
 	./linux/installer/deb/libsgx-quote-ex/clean.sh
 	./linux/installer/deb/libsgx-uae-service/clean.sh
@@ -537,7 +524,6 @@ clean:
 	./linux/installer/deb/libsgx-headers/clean.sh
 	./linux/installer/common/local_repo_builder/local_repo_builder.sh debian clean
 	./linux/installer/rpm/sgx-aesm-service/clean.sh
-	./linux/installer/rpm/libsgx-epid/clean.sh
 	./linux/installer/rpm/libsgx-launch/clean.sh
 	./linux/installer/rpm/libsgx-quote-ex/clean.sh
 	./linux/installer/rpm/libsgx-uae-service/clean.sh

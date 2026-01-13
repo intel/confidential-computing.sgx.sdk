@@ -42,7 +42,6 @@ SGX_ACCESS_VERSION(tcrypto, 1)
 //
 extern "C" void init_exception_handler(uint32_t *cpuid_table);
 extern "C" void const_init_exception_handler(void);
-extern "C" sgx_status_t init_ipp_cpuid(uint64_t cpu_feature_indicator);
 unsigned long openssl_last_err = 0;
 
 /* Crypto Library Initialization
@@ -60,8 +59,5 @@ extern "C" sgx_status_t sgx_init_crypto_lib(uint64_t cpu_feature_indicator, uint
     if (dead_code_flag) {
 		const_init_exception_handler();
 	}
-    //in case IPP is used in EPID-SDK, init IPP crypto lib.
-    //
-    return init_ipp_cpuid(cpu_feature_indicator);
 }
 

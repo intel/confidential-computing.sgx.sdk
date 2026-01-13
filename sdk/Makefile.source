@@ -37,7 +37,6 @@
 #        - tservice:      libsgx_tservice.a
 #        - trts:          libsgx_trts.a
 #        - tcrypto:       libsgx_tcrypto.a
-#        - tkey_exchange: libsgx_tkey_exchange.a
 #        - tprotected_fs: libsgx_tprotected_fs.a
 #        - tcmalloc:      libsgx_tcmalloc.a
 #        - sgx_pcl:       libsgx_pcl.a
@@ -45,7 +44,6 @@
 #        - protobuf:      libsgx_protobuf.a
 #        - ttls:          libsgx_ttls.a
 #  - Untrtusted libraries
-#        - ukey_exchange: libsgx_ukey_exchange.a
 #        - uprotected_fs: libsgx_uprotected_fs.a
 #        - ptrace:        libsgx_ptrace.so, gdb-sgx-plugin
 #        - sample_crypto: libsample_crypto.so (for sample code use)
@@ -66,7 +64,7 @@ LIBTCXX    := $(BUILD_DIR)/libsgx_tcxx.a
 LIBTSE     := $(BUILD_DIR)/libsgx_tservice.a
 
 .PHONY: components
-components: tstdc tcxx tservice trts tcrypto tkey_exchange ukey_exchange tprotected_fs uprotected_fs ptrace sample_crypto libcapable simulation signtool edger8r tcmalloc sgx_pcl sgx_encrypt sgx_tswitchless sgx_uswitchless pthread openmp protobuf ttls utls
+components: tstdc tcxx tservice trts tcrypto tprotected_fs uprotected_fs ptrace sample_crypto libcapable simulation signtool edger8r tcmalloc sgx_pcl sgx_encrypt sgx_tswitchless sgx_uswitchless pthread openmp protobuf ttls utls
 
 # ---------------------------------------------------
 #  tstdc
@@ -204,10 +202,6 @@ trts:
 tcrypto: edger8r
 	$(MAKE) -C tlibcrypto/
 
-.PHONY: tkey_exchange
-tkey_exchange: edger8r
-	$(MAKE) -C tkey_exchange
-
 .PHONY: tcmalloc
 tcmalloc:
 	$(MAKE) -C gperftools/
@@ -243,9 +237,6 @@ ttls: edger8r cbor_untrusted
 # ---------------------------------------------------
 #  Untrusted libraries
 # ---------------------------------------------------
-.PHONY: ukey_exchange
-ukey_exchange:
-	$(MAKE) -C ukey_exchange
 
 .PHONY: uprotected_fs
 uprotected_fs: edger8r
@@ -323,8 +314,6 @@ clean:
 	$(MAKE) -C tsafecrt/                           clean
 	$(MAKE) -C gperftools/                         clean
 	$(MAKE) -C tlibcrypto/                         clean
-	$(MAKE) -C tkey_exchange/                      clean
-	$(MAKE) -C ukey_exchange/                      clean
 	$(MAKE) -C protected_fs/sgx_tprotected_fs/     clean
 	$(MAKE) -C protected_fs/sgx_uprotected_fs/     clean
 	$(MAKE) -C debugger_interface/linux/           clean

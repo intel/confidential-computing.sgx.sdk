@@ -43,7 +43,6 @@ INCLUDES := -I..                                            \
             -I$(LINUX_SDK_DIR)/tseal                        \
             -I$(LINUX_SDK_DIR)/simulation/tinst             \
             -I$(LINUX_SDK_DIR)/simulation/urtssim           \
-            -I$(LINUX_EXTERNAL_DIR)/epid-sdk                \
             -I$(LINUX_EXTERNAL_DIR)/rdrand/                 \
             -I$(LINUX_PSW_DIR)/ae/inc                       \
             -I$(LINUX_PSW_DIR)/ae/inc/internal              \
@@ -68,14 +67,14 @@ vpath %.cpp $(LINUX_PSW_DIR)/ae/common \
 
 vpath %.c   $(COMMON_DIR)/src
 
-CPP_SRC := $(wildcard *.cpp ../*.cpp) se_sig_rl.cpp cpusvn_util.cpp sgx_read_rand.cpp
+CPP_SRC := $(wildcard *.cpp ../*.cpp) cpusvn_util.cpp sgx_read_rand.cpp
 CPP_SRC += crypto_evp_digest.cpp crypto_cmac_128.cpp
 C_SRC   := se_trace.c se_thread.c
 
 OBJ := $(sort $(CPP_SRC:.cpp=.o)) \
        $(C_SRC:.c=.o)
 
-LIBNAME = libsgx_epid_sim.so libsgx_launch_sim.so libsgx_quote_ex_sim.so libsgx_uae_service_sim.so
+LIBNAME = libsgx_launch_sim.so libsgx_quote_ex_sim.so libsgx_uae_service_sim.so
 LIBUAE_SERVICE_DEPLOY := $(LIBNAME:_sim.so=_deploy.so)
 
 .PHONY: all

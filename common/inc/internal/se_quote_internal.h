@@ -33,7 +33,7 @@
 #define _SE_QUOTE_INTERNAL_H_
 
 #include "se_types.h"
-#include "epid/common/types.h"
+#include <limits.h>  // for CHAR_BIT
 
 #ifdef  __cplusplus
 extern "C" {
@@ -46,6 +46,38 @@ typedef struct _se_wrap_key_t {
     uint8_t             encrypted_key[256];
     uint8_t             key_hash[32];
 } se_wrap_key_t;
+
+/// 256 bit octet string
+typedef struct OctStr256 {
+    unsigned char data[256 / CHAR_BIT];  ///< 256 bit data
+} OctStr256;
+
+/// a number in [0, q-1]
+typedef struct FqElemStr {
+  OctStr256 data;  ///< 256 bit octet string
+} FqElemStr;
+
+/// a number in [0, p-1]
+typedef struct FpElemStr {
+    OctStr256 data;  ///< 256 bit octet string
+} FpElemStr;
+
+/// Serialized G1 element
+typedef struct G1ElemStr {
+    FqElemStr x;  ///< an integer between [0, q-1]
+    FqElemStr y;  ///< an integer between [0, q-1]
+} G1ElemStr;
+
+typedef struct BasicSignature {
+    G1ElemStr B;   ///< an element in G1
+    G1ElemStr K;   ///< an element in G1
+    G1ElemStr T;   ///< an element in G1
+    FpElemStr c;   ///< an integer between [0, p-1]
+    FpElemStr sx;  ///< an integer between [0, p-1]
+    FpElemStr sf;  ///< an integer between [0, p-1]
+    FpElemStr sa;  ///< an integer between [0, p-1]
+    FpElemStr sb;  ///< an integer between [0, p-1]
+} BasicSignature;
 
 typedef struct _se_encrypted_sign
 {
