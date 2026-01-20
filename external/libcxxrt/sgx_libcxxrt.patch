@@ -1,0 +1,234 @@
+diff --git a/src/exception.cc b/src/exception.cc
+index 9bcf903..ccf21b9 100644
+--- a/src/exception.cc
++++ b/src/exception.cc
+@@ -25,8 +25,16 @@
+  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++#ifdef INTEL_SGX_MOD
++#include "sgx_disable_print.h"
++#endif
++
+ #include <stdlib.h>
++
++#ifndef INTEL_SGX_MOD
+ #include <dlfcn.h>
++#endif
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <stdint.h>
+@@ -36,6 +44,13 @@
+ #include "atomic.h"
+ #include "cxxabi.h"
+ 
++#ifdef INTEL_SGX_MOD
++#include "se_cdefs.h"
++
++// access the version variable to add a version to tcxx lib
++SGX_ACCESS_VERSION(tcxx, 1)
++#endif
++
+ #pragma weak pthread_key_create
+ #pragma weak pthread_setspecific
+ #pragma weak pthread_getspecific
+diff --git a/src/guard.cc b/src/guard.cc
+index cb58aa7..9eb6e32 100644
+--- a/src/guard.cc
++++ b/src/guard.cc
+@@ -47,6 +47,12 @@
+ #include <stdint.h>
+ #include <stdlib.h>
+ 
++#ifdef INTEL_SGX_MOD
++#include "se_cdefs.h"
++
++SGX_ACCESS_VERSION(tcxx, 3)
++#endif
++
+ // Older GCC doesn't define __LITTLE_ENDIAN__
+ #ifndef __LITTLE_ENDIAN__
+ // If __BYTE_ORDER__ is defined, use that instead
+@@ -343,7 +349,11 @@ extern "C" int __cxa_guard_acquire(Guard *guard_object)
+ 			case GuardState::InitLockFailed:
+ 				break;
+ 		}
++#ifndef INTEL_SGX_MOD
++		// sched_yield need to be implemented as a OCALL,
++		// while we try to remove OCALLs in this library.
+ 		sched_yield();
++#endif
+ 	}
+ }
+ 
+diff --git a/src/noexception.cc b/src/noexception.cc
+index 7d17920..d7262e7 100644
+--- a/src/noexception.cc
++++ b/src/noexception.cc
+@@ -24,6 +24,14 @@
+  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++#ifdef INTEL_SGX_MOD
++#if __cplusplus < 201103L
++#define _LIBCXXRT_NOEXCEPT throw()
++#else
++#define _LIBCXXRT_NOEXCEPT noexcept
++#endif
++#endif
++
+ namespace std
+ {
+ 	/**
+diff --git a/src/sgx_disable_print.c b/src/sgx_disable_print.c
+new file mode 100644
+index 0000000..aa18859
+--- /dev/null
++++ b/src/sgx_disable_print.c
+@@ -0,0 +1,44 @@
++/*
++ * Copyright(c) 2025 Intel Corporation
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include "sgx_disable_print.h"
++
++int sgx_fprintf(FILE* stream, const char* format, ...)
++{
++    (void)stream;
++    (void)format;
++
++    do
++    {
++        /* Do nothing... */
++    } while(0);
++
++    return 0;
++}
++
++int sgx_printf(const char* format, ...)
++{
++    (void)format;
++
++    do
++    {
++        /* Do nothing... */
++    } while(0);
++
++    return 0;
++}
++
++int sgx_fputs(const char* str, FILE* stream)
++{
++    (void)str;
++    (void)stream;
++
++    do
++    {
++        /* Do nothing... */
++    } while(0);
++
++    return 0;
++}
+diff --git a/src/sgx_disable_print.h b/src/sgx_disable_print.h
+new file mode 100644
+index 0000000..931778a
+--- /dev/null
++++ b/src/sgx_disable_print.h
+@@ -0,0 +1,31 @@
++/*
++ * Copyright(c) 2025 Intel Corporation
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef SGX_DISABLE_PRINT_H
++#define SGX_DISABLE_PRINT_H
++
++typedef struct {
++    int unused;
++} FILE;
++
++static FILE _dummy_stderr_obj __attribute__((unused));
++#define stderr ((FILE*)&_dummy_stderr_obj)
++
++#define fprintf sgx_fprintf
++#define printf sgx_printf
++#define fputs sgx_fputs
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++int sgx_fprintf(FILE* stream, const char* format, ...);
++int sgx_printf(const char* format, ...);
++int sgx_fputs(const char* str, FILE* stream);
++
++#ifdef __cplusplus
++}
++#endif
++#endif
+diff --git a/src/stdexcept.cc b/src/stdexcept.cc
+index 22c6930..1cb2fa9 100644
+--- a/src/stdexcept.cc
++++ b/src/stdexcept.cc
+@@ -29,6 +29,12 @@
+  */
+ #include "stdexcept.h"
+ 
++#ifdef INTEL_SGX_MOD
++#include "se_cdefs.h"
++
++SGX_ACCESS_VERSION(tcxx, 5)
++#endif
++
+ namespace std {
+ 
+ exception::exception() _LIBCXXRT_NOEXCEPT {}
+diff --git a/src/terminate.cc b/src/terminate.cc
+index b7f50b4..b5c8dd8 100644
+--- a/src/terminate.cc
++++ b/src/terminate.cc
+@@ -26,6 +26,12 @@
+ 
+ #include <stdlib.h>
+ 
++#ifdef INTEL_SGX_MOD
++#include "se_cdefs.h"
++
++SGX_ACCESS_VERSION(tcxx, 6)
++#endif
++
+ namespace std
+ {
+ 	/**
+diff --git a/src/typeinfo.cc b/src/typeinfo.cc
+index 5c44ef1..0c60368 100644
+--- a/src/typeinfo.cc
++++ b/src/typeinfo.cc
+@@ -29,6 +29,12 @@
+ #include <stdlib.h>
+ #include <stdio.h>
+ 
++#ifdef INTEL_SGX_MOD
++#include "se_cdefs.h"
++
++SGX_ACCESS_VERSION(tcxx, 4)
++#endif
++
+ using std::type_info;
+ 
+ type_info::~type_info() {}
+@@ -69,6 +75,7 @@ ABI_NAMESPACE::__pbase_type_info::~__pbase_type_info() {}
+ ABI_NAMESPACE::__pointer_type_info::~__pointer_type_info() {}
+ ABI_NAMESPACE::__pointer_to_member_type_info::~__pointer_to_member_type_info() {}
+ 
++#ifndef INTEL_SGX_MOD
+ // From libelftc
+ extern "C" char    *__cxa_demangle_gnu3(const char *);
+ 
+@@ -122,3 +129,4 @@ extern "C" char* __cxa_demangle(const char* mangled_name,
+ 	}
+ 	return buf;
+ }
++#endif

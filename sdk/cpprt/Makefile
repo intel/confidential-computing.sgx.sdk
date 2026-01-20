@@ -31,8 +31,13 @@
 
 include ../../buildenv.mk
 
-LINUXDIR := linux
-CPPRT    := libcpprt.a
+LINUXDIR       := linux
+OBJDIR         := obj
+CPPRT          := libcpprt.a
+STAMP          := .stamp
+LOCKFILE       := .lockfile
+LIBCXXRT_LIB   := $(LINUX_EXTERNAL_DIR)/libcxxrt/libcxxrt.a
+LIBCXXRT_STAMP := $(OBJDIR)/.stamp
 
 CFLAGS   += $(ENCLAVE_CFLAGS)
 CXXFLAGS += $(ENCLAVE_CXXFLAGS)
@@ -45,18 +50,35 @@ CPPFLAGS += -I$(COMMON_DIR)/inc           \
 CPPFLAGS += -I$(LINUX_SDK_DIR)/trts       \
             -I$(LINUX_SDK_DIR)/trts/linux \
 
+# DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS: diagnostics are written using printf but printf is not available in sgx_tcxx
+# LIBCXXRT_NO_EMERGENCY_MALLOC: if enabled sgx_tcxx will depend on sgx_pthread
+CFLAGS   += -DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS -DLIBCXXRT_NO_EMERGENCY_MALLOC
+CXXFLAGS += -DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS -DLIBCXXRT_NO_EMERGENCY_MALLOC
+
 CPP_SRCS := $(wildcard memory_manage/new*.cpp) \
             $(wildcard memory_manage/delete*.cpp)
 CPP_SRCS += tcxx_version.cpp
 
 CC_SRCS  := $(wildcard $(LINUXDIR)/*.cc)
-C_SRCS   := $(filter-out $(LINUXDIR)/libelftc_dem_gnu3.c, $(wildcard $(LINUXDIR)/*.c))
+C_SRCS   := $(wildcard $(LINUXDIR)/*.c)
 
 CPP_OBJS := $(CPP_SRCS:.cpp=.o)
 CC_OBJS  := $(CC_SRCS:.cc=.o)
 C_OBJS   := $(C_SRCS:.c=.o)
 
 OBJS := $(sort $(CPP_OBJS) $(C_OBJS) $(CC_OBJS))
+
+$(OBJDIR):
+	$(MKDIR) $(OBJDIR)
+
+$(LIBCXXRT_STAMP): $(OBJDIR) $(LIBCXXRT_LIB)
+	flock $(OBJDIR)/$(LOCKFILE) -c ' \
+	  if [ ! -f $(LIBCXXRT_STAMP) ]; then \
+	    $(RM) $(OBJDIR)/*.o; \
+	    cd $(OBJDIR) && $(AR) x $(LIBCXXRT_LIB); \
+	    touch $(STAMP); \
+	  fi \
+	'
 
 $(C_OBJS): %.o: %.c
 	$(CC) -c  $(CFLAGS)   $(CPPFLAGS) $< -o $@
@@ -75,16 +97,16 @@ all: $(CPPRT)
 prepare-libunwind:
 	$(CP) linux/pthread_compat.h $(LIBUNWIND_DIR)/include
 
-$(CPPRT): $(OBJS) prepare-libunwind libunwind
+$(CPPRT): $(OBJS) $(LIBCXXRT_STAMP) prepare-libunwind libunwind
 	$(CP) $(LIBUNWIND_DIR)/src/.libs/libunwind.a $(CPPRT)
-	$(AR) rs $@ $(OBJS)
+	@LIBCXXRT_OBJ="$(wildcard $(OBJDIR)/*.o)"; \
+	$(AR) rs $@ $(OBJS) $$LIBCXXRT_OBJ
 
 .PHONY: libunwind
 libunwind:
 	cd $(LIBUNWIND_DIR)/ && \
 		( test -f Makefile || CFLAGS="$(CFLAGS)" ./autogen.sh ) && \
 		$(MAKE) -j$(shell nproc)
-
 
 .PHONY: clean
 clean:
@@ -102,5 +124,6 @@ endif
               $(LIBUNWIND_DIR)/include/pthread_compat.h \
               $(LIBUNWIND_DIR)/src/Makefile.in   \
               $(LIBUNWIND_DIR)/Makefile          \
-              $(LIBUNWIND_DIR)/m4
+              $(LIBUNWIND_DIR)/m4                \
+              $(OBJDIR)
 

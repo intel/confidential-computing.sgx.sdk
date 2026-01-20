@@ -141,7 +141,7 @@ pthread: edger8r
 .PHONY: tcxx
 tcxx: $(LIBTCXX)
 
-$(LIBTCXX): cpprt tlibcxx
+$(LIBTCXX): libcxxrt cpprt tlibcxx
 	@$(MKDIR) $(BUILD_DIR)/.tlibcxx
 	@$(RM) -f $(BUILD_DIR)/.tlibcxx/*
 	@cd $(BUILD_DIR)/.tlibcxx    && $(AR) x $(LINUX_SDK_DIR)/tlibcxx/libcxx.a
@@ -229,6 +229,10 @@ endif
 .PHONY: cbor_untrusted
 cbor_untrusted:
 	$(MAKE) -C $(LINUX_EXTERNAL_DIR)/cbor cbor_untrusted
+
+.PHONY: libcxxrt
+libcxxrt:
+	$(MAKE) -C $(LINUX_EXTERNAL_DIR)/libcxxrt
 
 .PHONY: ttls
 ttls: edger8r cbor_untrusted
@@ -331,6 +335,7 @@ clean:
 	$(MAKE) -C $(LINUX_EXTERNAL_DIR)/openmp        clean
 	$(MAKE) -C $(LINUX_EXTERNAL_DIR)/protobuf      clean
 	$(MAKE) -C $(LINUX_EXTERNAL_DIR)/cbor          clean
+	$(MAKE) -C $(LINUX_EXTERNAL_DIR)/libcxxrt      clean
 	$(MAKE) -C ttls						           clean
 	$(MAKE) -C utls						           clean
 	@$(RM) $(LIBTLIBC) $(LIBTCXX) $(LIBTSE)
