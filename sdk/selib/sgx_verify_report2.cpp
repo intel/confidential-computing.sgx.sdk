@@ -73,9 +73,10 @@ sgx_status_t sgx_verify_report2(const sgx_report2_mac_struct_t *report_mac_struc
         goto CLEANUP;
     }
 
-    if (report_mac_struct->report_type.subtype != TEE_REPORT2_SUBTYPE
-        || (report_mac_struct->report_type.version != TEE_REPORT2_VERSION
-            && report_mac_struct->report_type.version != TEE_REPORT2_VERSION_SERVICETD))
+    if (report_mac_struct->report_type.subtype != TEE_REPORT2_SUBTYPE_0
+        || (report_mac_struct->report_type.version != TEE_REPORT2_VERSION_0
+            && report_mac_struct->report_type.version != TEE_REPORT2_VERSION_1
+            && report_mac_struct->report_type.version != TEE_REPORT2_VERSION_3))
     {
         err = SGX_ERROR_INVALID_PARAMETER;
         goto CLEANUP;
