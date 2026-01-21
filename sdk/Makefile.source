@@ -141,7 +141,7 @@ pthread: edger8r
 .PHONY: tcxx
 tcxx: $(LIBTCXX)
 
-$(LIBTCXX): libcxxrt cpprt tlibcxx
+$(LIBTCXX): cpprt tlibcxx
 	@$(MKDIR) $(BUILD_DIR)/.tlibcxx
 	@$(RM) -f $(BUILD_DIR)/.tlibcxx/*
 	@cd $(BUILD_DIR)/.tlibcxx    && $(AR) x $(LINUX_SDK_DIR)/tlibcxx/libcxx.a
@@ -155,7 +155,7 @@ else
 endif
 
 .PHONY: cpprt
-cpprt:
+cpprt: libcxxrt
 	$(MAKE) -C cpprt
 
 .PHONY: tlibcxx

@@ -72,13 +72,9 @@ $(OBJDIR):
 	$(MKDIR) $(OBJDIR)
 
 $(LIBCXXRT_STAMP): $(OBJDIR) $(LIBCXXRT_LIB)
-	flock $(OBJDIR)/$(LOCKFILE) -c ' \
-	  if [ ! -f $(LIBCXXRT_STAMP) ]; then \
-	    $(RM) $(OBJDIR)/*.o; \
-	    cd $(OBJDIR) && $(AR) x $(LIBCXXRT_LIB); \
-	    touch $(STAMP); \
-	  fi \
-	'
+	$(RM) $(OBJDIR)/*.o
+	cd $(OBJDIR) && $(AR) x $(LIBCXXRT_LIB)
+	touch $(STAMP)
 
 $(C_OBJS): %.o: %.c
 	$(CC) -c  $(CFLAGS)   $(CPPFLAGS) $< -o $@
