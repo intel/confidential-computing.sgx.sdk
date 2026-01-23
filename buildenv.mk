@@ -107,16 +107,9 @@ CUR_DIR := $(realpath $(call parent-dir,$(lastword $(wordlist 2,$(words $(MAKEFI
 CC_VERSION := $(shell $(CC) -dumpversion)
 CC_VERSION_MAJOR := $(shell echo $(CC_VERSION) | cut -f1 -d.)
 CC_VERSION_MINOR := $(shell echo $(CC_VERSION) | cut -f2 -d.)
-CC_BELOW_4_9 := $(shell [ $(CC_VERSION_MAJOR) -lt 4 -o \( $(CC_VERSION_MAJOR) -eq 4 -a $(CC_VERSION_MINOR) -le 9 \) ] && echo 1)
-CC_BELOW_5_2 := $(shell [ $(CC_VERSION_MAJOR) -lt 5 -o \( $(CC_VERSION_MAJOR) -eq 5 -a $(CC_VERSION_MINOR) -le 2 \) ] && echo 1)
 CC_NO_LESS_THAN_8 := $(shell expr $(CC_VERSION) \>\= "8")
 
-# turn on stack protector for SDK
-ifeq ($(CC_BELOW_4_9), 1)
-    COMMON_FLAGS += -fstack-protector
-else
-    COMMON_FLAGS += -fstack-protector-strong
-endif
+COMMON_FLAGS += -fstack-protector-strong
 
 ifdef DEBUG
     COMMON_FLAGS += -O0 -ggdb -DDEBUG -UNDEBUG
@@ -127,14 +120,6 @@ endif
 
 ifdef SE_SIM
     COMMON_FLAGS += -DSE_SIM
-endif
-
-# Disable ref-LE build by default.
-# Users could enable the ref-LE build 
-# by explicitly specifying 'BUILD_REF_LE=1'
-BUILD_REF_LE ?= 0
-ifeq ($(BUILD_REF_LE), 1)
-    COMMON_FLAGS += -DREF_LE
 endif
 
 ifdef SERVTD_ATTEST

@@ -116,14 +116,8 @@ Enclave_Include_Paths := -IInclude -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/i
 Enclave_Include_Paths += -I$(SGXSSL_PKG_PATH)/include
 Enclave_Include_Paths += -I$(SOCKET_DIR)/include
 
-CC_BELOW_4_9 := $(shell expr "`$(CC) -dumpversion`" \< "4.9")
-ifeq ($(CC_BELOW_4_9), 1)
-	Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector
-else
-	Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong
-endif
-
-Enclave_C_Flags += $(Enclave_Include_Paths) 
+Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong
+Enclave_C_Flags += $(Enclave_Include_Paths)
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
 
 SgxSSL_Link_Libraries := -L$(SGXSSL_PKG_PATH)/lib64 -Wl,--whole-archive -l$(SGXSSL_Library_Name) -Wl,--no-whole-archive \

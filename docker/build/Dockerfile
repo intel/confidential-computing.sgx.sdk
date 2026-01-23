@@ -100,7 +100,7 @@ WORKDIR /deb_local_repo
 COPY --from=builder /linux-sgx/linux/installer/deb/sgx_debian_local_repo/ ./
 RUN echo "deb [trusted=yes arch=amd64] file:///deb_local_repo jammy main">>/etc/apt/sources.list
 RUN apt-get update
-RUN apt-get install -y libsgx-aesm-launch-plugin libsgx-aesm-quote-ex-plugin
+RUN apt-get install -y libsgx-aesm-quote-ex-plugin
 
 WORKDIR /opt/intel/sgx-aesm-service/aesm/
 ENV LD_LIBRARY_PATH=.

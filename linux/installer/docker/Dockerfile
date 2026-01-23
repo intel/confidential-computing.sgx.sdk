@@ -57,7 +57,7 @@ RUN apt-get install -y \
 
 # No AESM daemon, only AESM client side API support for launch.
 # For applications requiring attestation, add libsgx-quote-ex
-RUN apt-get install -y --no-install-recommends libsgx-launch libsgx-urts
+RUN apt-get install -y --no-install-recommends libsgx-urts
 
 COPY --from=sgx_sample_builder /opt/intel/sgxsdk/SampleCode/SampleEnclave/app .
 COPY --from=sgx_sample_builder /opt/intel/sgxsdk/SampleCode/SampleEnclave/enclave.signed.so .
@@ -73,8 +73,8 @@ RUN apt-get install -y \
     libssl-dev \
     make
 
-# More aesm plugins, e.g libsgx-aesm-quote-ex-plugin, are needed if application requires attestation. See installation guide.
-RUN apt-get install -y libsgx-aesm-launch-plugin
+# More aesm plugins are needed if application requires attestation. See installation guide.
+RUN apt-get install -y libsgx-aesm-quote-ex-plugin
 
 WORKDIR /opt/intel/sgx-aesm-service/aesm
 ENV LD_LIBRARY_PATH=.

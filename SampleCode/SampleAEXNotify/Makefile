@@ -117,14 +117,7 @@ Crypto_Library_Name := sgx_tcrypto
 Enclave_Cpp_Files := Enclave/Enclave.cpp
 Enclave_Include_Paths := -IInclude -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx
 
-Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections $(MITIGATION_CFLAGS)
-CC_BELOW_4_9 := $(shell expr "`$(CC) -dumpversion`" \< "4.9")
-ifeq ($(CC_BELOW_4_9), 1)
-    Enclave_C_Flags += -fstack-protector
-else
-    Enclave_C_Flags += -fstack-protector-strong
-endif
-
+Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong $(MITIGATION_CFLAGS)
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -nostdinc++
 
 # Enable the security flags

@@ -45,9 +45,6 @@ The [intel-device-plugins-for-kubernetes](https://github.com/intel/intel-device-
 The [intel-sgx-ssl](https://github.com/intel/intel-sgx-ssl) project provides a full-strength general purpose cryptography library for Intel(R) SGX enclave applications. It is based on the underlying OpenSSL* Open Source project. Intel(R) SGX provides a build combination to build out a SGXSSL based SDK as [below](#build-the-intelr-sgx-sdk-and-intelr-sgx-sdk-installer). Users could also utilize this cryptography library in SGX enclave applications seperately.
 
 
-This repository provides a reference implementation of a Launch Enclave for 'Flexible Launch Control' under [psw/ae/ref_le](psw/ae/ref_le). The reference LE implementation can be used as a basis for enforcing different launch control policy by the platform developer or owner. To build and try it by yourself, please refer to the [ref_le.md](psw/ae/ref_le/ref_le.md) for details.
-**NOTE**: The reference LE is only workable with [linux-sgx-driver](https://github.com/intel/linux-sgx-driver) and is planned to be deprecated starting from Intel(R) SGX release 2.20.
-
 License
 -------
 See [License.txt](License.txt) for details.
@@ -248,7 +245,7 @@ You can find the tools and libraries generated in the `build/linux` directory.
    ```
   $ make deb_psw_pkg
   ```
-  You can find the generated Intel(R) SGX PSW installers located under `linux/installer/deb/libsgx-urts`, `linux/installer/deb/libsgx-enclave-common`, `linux/installer/deb/libsgx-uae-service`, `linux/installer/deb/libsgx-launch`, `linux/installer/deb/libsgx-quote-ex` and `linux/installer/deb/sgx-aesm-service` respectively.
+  You can find the generated Intel(R) SGX PSW installers located under `linux/installer/deb/libsgx-urts`, `linux/installer/deb/libsgx-enclave-common`, `linux/installer/deb/libsgx-uae-service`, `linux/installer/deb/libsgx-quote-ex` and `linux/installer/deb/sgx-aesm-service` respectively.
 
   **Note**: Besides the Intel(R) SGX PSW installer, the above command generates another debug symbol package named ``package-name-dbgsym_${version}-${revision}_amd64.ddeb`` for debug purpose.
   **Note**: Starting with the 2.10 release, besides the Intel(R) SGX PSW installer, the above command generates [SGXDataCenterAttestationPrimitives](https://github.com/intel/SGXDataCenterAttestationPrimitives/) installers as well.
@@ -261,7 +258,7 @@ You can find the tools and libraries generated in the `build/linux` directory.
   ```
   $ make rpm_psw_pkg
   ```
-  You can find the generated Intel(R) SGX PSW installers located under `linux/installer/rpm/libsgx-urts`, `linux/installer/rpm/libsgx-enclave-common`, `linux/installer/rpm/libsgx-uae-service`, `linux/installer/rpm/libsgx-launch`, `linux/installer/rpm/libsgx-quote-ex` and `linux/installer/rpm/sgx-aesm-service` respectively.
+  You can find the generated Intel(R) SGX PSW installers located under `linux/installer/rpm/libsgx-urts`, `linux/installer/rpm/libsgx-enclave-common`, `linux/installer/rpm/libsgx-uae-service`, `linux/installer/rpm/libsgx-quote-ex` and `linux/installer/rpm/sgx-aesm-service` respectively.
 
   **Note**: The above command builds the Intel(R) SGX PSW with default configuration firstly and then generates the target PSW Installer. To build the Intel(R) SGX PSW Installer with debug information kept in the tools and libraries, enter the following command:
   ```
@@ -469,7 +466,7 @@ The SGX PSW provides 3 services: launch, EPID-based attestation, and algorithm a
 
 |   |Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12|Red Hat Enterprise Linux 9.4, CentOS Stream 9, Anolis OS 8.10, and Azure Linux 3.0| SUSE Linux Enterprise Server 15|
 | ------------ | ------------ | ------------ | ------------ |
-|launch service |apt-get install libsgx-launch libsgx-urts|yum install libsgx-launch libsgx-urts|zypper install libsgx-launch libsgx-urts|
+|launch service |apt-get install libsgx-urts|yum install libsgx-urts|zypper install libsgx-urts|
 |algorithm agnostic attestation service|apt-get install libsgx-quote-ex libsgx-urts|yum install libsgx-quote-ex libsgx-urts|zypper install libsgx-quote-ex libsgx-urts|
 |DCAP ECDSA-based service |apt-get install libsgx-dcap-ql|yum install libsgx-dcap-ql|zypper install libsgx-dcap-ql|
 

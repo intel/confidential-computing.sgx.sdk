@@ -203,10 +203,6 @@ deb_libsgx_pce_logic: psw
 deb_sgx_aesm_service: psw deb_libsgx_pce_logic
 	./linux/installer/deb/sgx-aesm-service/build.sh
 
-.PHONY: deb_libsgx_launch
-deb_libsgx_launch: psw
-	./linux/installer/deb/libsgx-launch/build.sh
-
 .PHONY: deb_libsgx_quote_ex
 deb_libsgx_quote_ex: psw
 	./linux/installer/deb/libsgx-quote-ex/build.sh
@@ -227,23 +223,6 @@ deb_libsgx_urts: psw
 deb_libsgx_headers_pkg:
 	./linux/installer/deb/libsgx-headers/build.sh
 
-ifeq ($(CC_BELOW_5_2), 1)
-.PHONY: deb_psw_pkg
-deb_psw_pkg: deb_libsgx_headers_pkg \
-             deb_libsgx_qe3_logic \
-             deb_libsgx_pce_logic \
-             deb_sgx_aesm_service \
-             deb_libsgx_launch \
-             deb_libsgx_quote_ex \
-             deb_libsgx_uae_service \
-             deb_libsgx_enclave_common \
-             deb_libsgx_urts \
-             deb_libsgx_ae_qe3 \
-             deb_libsgx_ae_tdqe \
-             deb_libsgx_ae_id_enclave \
-             deb_libsgx_tdx_logic \
-             deb_tdx_qgs deb_tdx_attest
-else
 .PHONY: deb_libsgx_dcap_default_qpl
 deb_libsgx_dcap_default_qpl:
 	$(MAKE) -C external/dcap_source/QuoteGeneration deb_sgx_dcap_default_qpl_pkg
@@ -303,7 +282,6 @@ deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_libsgx_qe3_logic \
              deb_libsgx_pce_logic \
              deb_sgx_aesm_service \
-             deb_libsgx_launch \
              deb_libsgx_quote_ex \
              deb_libsgx_uae_service \
              deb_libsgx_enclave_common \
@@ -324,7 +302,6 @@ deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_tdx_attest \
              deb_tee_appraisal_tool \
              deb_pcs_client_tool
-endif
 
 .PHONY: deb_local_repo
 deb_local_repo: deb_psw_pkg
@@ -383,10 +360,6 @@ rpm_libsgx_qe3_logic: psw
 rpm_sgx_aesm_service: psw
 	./linux/installer/rpm/sgx-aesm-service/build.sh
 
-.PHONY: rpm_libsgx_launch
-rpm_libsgx_launch: psw
-	./linux/installer/rpm/libsgx-launch/build.sh
-
 .PHONY: rpm_libsgx_quote_ex
 rpm_libsgx_quote_ex: psw
 	./linux/installer/rpm/libsgx-quote-ex/build.sh
@@ -411,24 +384,6 @@ rpm_sdk_pkg: sdk
 rpm_libsgx_headers_pkg:
 	./linux/installer/rpm/libsgx-headers/build.sh
 
-ifeq ($(CC_BELOW_5_2), 1)
-.PHONY: rpm_psw_pkg
-rpm_psw_pkg: rpm_libsgx_headers_pkg \
-             rpm_libsgx_pce_logic \
-             rpm_libsgx_qe3_logic \
-             rpm_sgx_aesm_service \
-             rpm_libsgx_launch \
-             rpm_libsgx_quote_ex \
-             rpm_libsgx_uae_service \
-             rpm_libsgx_enclave_common \
-             rpm_libsgx_urts \
-             rpm_libsgx_ae_qe3 \
-             rpm_libsgx_ae_tdqe \
-             rpm_libsgx_ae_id_enclave \
-             rpm_libsgx_tdx_logic \
-             rpm_tdx_qgs \
-             rpm_tdx_attest
-else
 .PHONY: rpm_libsgx_dcap_default_qpl
 rpm_libsgx_dcap_default_qpl:
 	$(MAKE) -C external/dcap_source/QuoteGeneration rpm_sgx_dcap_default_qpl_pkg
@@ -488,7 +443,6 @@ rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_libsgx_pce_logic \
              rpm_libsgx_qe3_logic \
              rpm_sgx_aesm_service \
-             rpm_libsgx_launch \
              rpm_libsgx_quote_ex \
              rpm_libsgx_uae_service \
              rpm_libsgx_enclave_common \
@@ -509,7 +463,6 @@ rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_tdx_attest \
              rpm_tee_appraisal_tool \
              rpm_pcs_client_tool
-endif
 
 .PHONY: rpm_local_repo
 rpm_local_repo: rpm_psw_pkg
@@ -522,7 +475,6 @@ clean:
 	@$(RM)   -r linux/installer/bin/install-sgx-*.bin*.withLicense
 	@$(RM)   -r linux/installer/bin/sgx_linux*.bin
 	./linux/installer/deb/sgx-aesm-service/clean.sh
-	./linux/installer/deb/libsgx-launch/clean.sh
 	./linux/installer/deb/libsgx-quote-ex/clean.sh
 	./linux/installer/deb/libsgx-uae-service/clean.sh
 	./linux/installer/deb/libsgx-enclave-common/clean.sh
@@ -530,7 +482,6 @@ clean:
 	./linux/installer/deb/libsgx-headers/clean.sh
 	./linux/installer/common/local_repo_builder/local_repo_builder.sh debian clean
 	./linux/installer/rpm/sgx-aesm-service/clean.sh
-	./linux/installer/rpm/libsgx-launch/clean.sh
 	./linux/installer/rpm/libsgx-quote-ex/clean.sh
 	./linux/installer/rpm/libsgx-uae-service/clean.sh
 	./linux/installer/rpm/libsgx-enclave-common/clean.sh

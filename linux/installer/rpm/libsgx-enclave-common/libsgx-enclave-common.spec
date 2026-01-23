@@ -41,7 +41,6 @@ BuildRequires:  libsystemd0
 %else
 BuildRequires:  systemd-libs
 %endif
-Recommends:     libsgx-launch >= %{version}-%{release}
 
 License:        BSD License
 URL:            https://github.com/intel/linux-sgx

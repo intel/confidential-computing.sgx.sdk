@@ -122,14 +122,7 @@ Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/Edger8rSyntax/*.cpp)
 Enclave_Include_Paths := -IInclude -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections $(MITIGATION_CFLAGS)
-CC_BELOW_4_9 := $(shell expr "`$(CC) -dumpversion`" \< "4.9")
-ifeq ($(CC_BELOW_4_9), 1)
-    Enclave_C_Flags += -fstack-protector
-else
-    Enclave_C_Flags += -fstack-protector-strong
-endif
-
-Enclave_Cpp_Flags := $(Enclave_C_Flags) -nostdinc++
+Enclave_Cpp_Flags := $(Enclave_C_Flags) -nostdinc++ -fstack-protector-strong
 
 # Enable the security flags
 Enclave_Security_Link_Flags := -Wl,-z,relro,-z,now,-z,noexecstack
