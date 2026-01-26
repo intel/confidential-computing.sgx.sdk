@@ -272,6 +272,15 @@ deb_tee_appraisal_tool:
 	$(MAKE) -C external/dcap_source/QuoteGeneration deb_tee_appraisal_tool_pkg
 	$(CP) external/dcap_source/QuoteGeneration/installer/linux/deb/tee-appraisal-tool/tee-appraisal-tool*deb ./linux/installer/deb/sgx-aesm-service/
 
+.PHONY: deb_libsgx_ae_qae
+deb_libsgx_ae_qae:
+ifeq ("$(wildcard ./external/dcap_source/QuoteGeneration/psw/ae/data/prebuilt/libsgx_qae.signed.so)", "")
+	./external/dcap_source/QuoteGeneration/download_prebuilt.sh
+endif
+	$(MAKE) -C external/dcap_source/QuoteGeneration deb_sgx_ae_qae_pkg
+	$(CP) external/dcap_source/QuoteGeneration/installer/linux/deb/libsgx-ae-qae/libsgx-ae-qae*deb ./linux/installer/deb/sgx-aesm-service/
+
+
 .PHONY: deb_pcs_client_tool
 deb_pcs_client_tool:
 	$(MAKE) -C external/dcap_source/tools/PcsClientTool deb_sgx_pcs_client_pkg
@@ -301,6 +310,7 @@ deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_tdx_qgs \
              deb_tdx_attest \
              deb_tee_appraisal_tool \
+             deb_libsgx_ae_qae \
              deb_pcs_client_tool
 
 .PHONY: deb_local_repo
@@ -433,6 +443,14 @@ rpm_tee_appraisal_tool:
 	$(MAKE) -C external/dcap_source/QuoteGeneration rpm_tee_appraisal_tool_pkg
 	$(CP) external/dcap_source/QuoteGeneration/installer/linux/rpm/tee-appraisal-tool/tee-appraisal-tool*rpm ./linux/installer/rpm/sgx-aesm-service/
 
+.PHONY: rpm_libsgx_ae_qae
+rpm_libsgx_ae_qae:
+ifeq ("$(wildcard ./external/dcap_source/QuoteGeneration/psw/ae/data/prebuilt/libsgx_qae.signed.so)", "")
+	./external/dcap_source/QuoteGeneration/download_prebuilt.sh
+endif
+	$(MAKE) -C external/dcap_source/QuoteGeneration rpm_sgx_ae_qae_pkg
+	$(CP) external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-ae-qae/libsgx-ae-qae*rpm ./linux/installer/rpm/sgx-aesm-service/
+
 .PHONY: rpm_pcs_client_tool
 rpm_pcs_client_tool:
 	$(MAKE) -C external/dcap_source/tools/PcsClientTool rpm_sgx_pcs_client_pkg
@@ -462,6 +480,7 @@ rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_tdx_qgs \
              rpm_tdx_attest \
              rpm_tee_appraisal_tool \
+             rpm_libsgx_ae_qae \
              rpm_pcs_client_tool
 
 .PHONY: rpm_local_repo
@@ -513,6 +532,7 @@ ifeq ("$(shell test -f external/dcap_source/QuoteVerification/Makefile && echo M
 	./external/dcap_source/QuoteGeneration/installer/linux/deb/libsgx-qe3-logic/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/deb/libsgx-dcap-quote-verify/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/deb/tee-appraisal-tool/clean.sh
+	./external/dcap_source/QuoteGeneration/installer/linux/deb/libsgx-ae-qae/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-ae-qve/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-ae-qe3/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-ae-id-enclave/clean.sh
@@ -526,6 +546,7 @@ ifeq ("$(shell test -f external/dcap_source/QuoteVerification/Makefile && echo M
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-qe3-logic/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-dcap-quote-verify/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/tee-appraisal-tool/clean.sh
+	./external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-ae-qae/clean.sh
 endif
 
 rebuild:
