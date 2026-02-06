@@ -1,3 +1,6 @@
+# Copyright (c) 2020-2026 Intel Corporation
+# SPDX-License-Identifier: BSD-3-Clause
+
 FROM ubuntu:22.04
 
 RUN apt-get update \
