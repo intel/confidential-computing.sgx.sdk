@@ -106,7 +106,7 @@ cbor_untrusted: $(CBOR_SRC)/build
 	@cd $(CBOR_SRC)/build && cmake ../ $(CBOR_CONFIG) && $(MAKE) && make install
 	# in case of cbor lib name is installed as lib64 on CentOS
 	if [ -d $(CBOR_LIB64) ]; then \
-		mv $(CBOR_LIB64) $(CBOR_LIB); \
+		mkdir -p $(CBOR_LIB) && cp -r $(CBOR_LIB64)/* $(CBOR_LIB)/ && rm -rf $(CBOR_LIB64); \
 	fi
 
 cbor_trusted: $(SGX_CBOR_SRC)/build
@@ -114,7 +114,7 @@ cbor_trusted: $(SGX_CBOR_SRC)/build
 	@cd $(SGX_CBOR_SRC)/build && cmake ../ $(SGX_CBOR_CONFIG) -DCMAKE_C_ENCLAVE_FLAGS="$(C_ENCLAVE_FLAGS)" && $(MAKE) && make install && cd ../..
 	#in case of cbor lib is installed as lib64 on CentOS
 	if [ -d $(SGX_CBOR_LIB64) ]; then \
-		mv $(SGX_CBOR_LIB64) $(SGX_CBOR_LIB); \
+		mkdir -p $(SGX_CBOR_LIB) && cp -r $(SGX_CBOR_LIB64)/* $(SGX_CBOR_LIB)/ && rm -rf $(SGX_CBOR_LIB64); \
 	fi
 	mv $(SGX_CBOR_LIB)/libcbor.a $(SGX_LIBCBOR)
 
