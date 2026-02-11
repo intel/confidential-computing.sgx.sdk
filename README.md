@@ -78,7 +78,9 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
   * Ubuntu\* 22.04 LTS Server 64bits
   * Ubuntu\* 24.04 LTS Server 64bits
   * Red Hat Enterprise Linux Server release 9.4 64bits
+  * Red Hat Enterprise Linux Server release 10.0 64bits
   * CentOS Stream 9 64bits
+  * CentOS Stream 10 64bits
   * SUSE Linux Enterprise Server 15.6 64bits
   * Anolis OS 8.10 64bits
   * Azure Linux 3.0 64bits
@@ -95,12 +97,12 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
   ```
     $ sudo apt-get install build-essential ocaml ocamlbuild automake autoconf libtool wget python-is-python3 libssl-dev git cmake perl
   ```
-  * On Red Hat Enterprise Linux 9.4:
+  * On Red Hat Enterprise Linux 9.4 and 10.0:
   ```
     $ sudo yum groupinstall 'Development Tools'
     $ sudo yum install ocaml ocaml-ocamlbuild wget python3 openssl-devel git cmake perl
   ```
-  * On CentOS Stream 9:
+  * On CentOS Stream 9 and 10:
   ```
     $ sudo dnf group install 'Development Tools'
     $ sudo dnf install ocaml ocaml-ocamlbuild redhat-rpm-config openssl-devel wget rpm-build git cmake perl python3
@@ -133,11 +135,11 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
       ```
         $ sudo apt-get install libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev debhelper cmake reprepro unzip pkgconf libboost-dev libboost-system-dev libboost-thread-dev lsb-release libsystemd0
       ```
-      * On Red Hat Enterprise Linux 9.4:
+      * On Red Hat Enterprise Linux 9.4 and 10.0:
       ```
         $ sudo yum install openssl-devel libcurl-devel protobuf-devel cmake rpm-build createrepo yum-utils pkgconf boost-devel protobuf-lite-devel systemd-libs
       ```
-      * On CentOS Stream 9:
+      * On CentOS Stream 9 and 10:
       ```
         $ sudo dnf install openssl-devel libcurl-devel protobuf-devel cmake rpm-build createrepo yum-utils pkgconf boost-devel protobuf-lite-devel systemd-libs
       ```      
@@ -254,7 +256,7 @@ You can find the tools and libraries generated in the `build/linux` directory.
   ```
   $ make deb_psw_pkg DEBUG=1
   ```
-  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9, Anolis OS 8.10 and SUSE Linux Enterprise Server 15.6:
+  * On Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10, Anolis OS 8.10 and SUSE Linux Enterprise Server 15.6:
   ```
   $ make rpm_psw_pkg
   ```
@@ -308,16 +310,16 @@ You can find the tools and libraries generated in the `build/linux` directory.
   **Note**: The above command builds the local package repository. If you want to use it, you need to add it to the system repository configuration. Since the local package repository is not signed with GPG, you should ignore the gpgcheck when installing the packages.
 
 - To add the local RPM package repository to the system repository configuration, you can use the following command. You need to replace PATH_TO_LOCAL_REPO with the proper path on your system:
-  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9, Azure Linux 3.0, Anolis OS 8.10:
+  * On Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10, Azure Linux 3.0, Anolis OS 8.10:
   ```
-  $ sudo yum-config-manager --add-repo file://PATH_TO_LOCAL_REPO
+  $ sudo dnf config-manager --add-repo file://PATH_TO_LOCAL_REPO
   ```
   * On SUSE Linux Enterprise Server 15.6, you need to replace LOCAL_REPO_ALIAS with proper alias name for the local repo:
   ```
   $ sudo zypper addrepo PATH_TO_LOCAL_REPO LOCAL_REPO_ALIAS
   ```
 - To ignore the gpgcheck when you install the package, enter the following command:
-  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9, Azure Linux 3.0, Anolis OS 8.10:
+  * On Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10, Azure Linux 3.0, Anolis OS 8.10:
   ```
   $ sudo yum --nogpgcheck install <package>
   ```
@@ -333,7 +335,9 @@ Install the Intel(R) SGX SDK
   * Ubuntu\* 22.04 LTS Server 64bits
   * Ubuntu\* 24.04 LTS Server 64bits
   * Red Hat Enterprise Linux Server release 9.4 64bits
+  * Red Hat Enterprise Linux Server release 10.0 64bits
   * CentOS Stream 9 64bits
+  * CentOS Stream 10 64bits
   * SUSE Linux Enterprise Server 15.6 64bits
   * Anolis OS 8.10 64bits
   * Azure Linux 3.0 64bits
@@ -349,7 +353,7 @@ Install the Intel(R) SGX SDK
   ```
     $ sudo apt-get install build-essential python-is-python3
   ```
-  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9 and Azure Linux 3.0:
+  * On Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10 and Azure Linux 3.0:
   ```
      $ sudo yum groupinstall 'Development Tools'
      $ sudo yum install python3
@@ -423,7 +427,9 @@ Install the Intel(R) SGX PSW
   * Ubuntu\* 22.04 LTS Server 64bits
   * Ubuntu\* 24.04 LTS Server 64bits
   * Red Hat Enterprise Linux Server release 9.4 64bits
+  * Red Hat Enterprise Linux Server release 10.0 64bits
   * CentOS Stream 9 64bits
+  * CentOS Stream 10 64bits
   * SUSE Linux Enterprise Server 15.6 64bits
   * Anolis OS 8.10 64bits
   * Azure Linux 3.0 64bits
@@ -438,11 +444,11 @@ Install the Intel(R) SGX PSW
   ```
     $ sudo apt-get install libssl-dev libcurl4-openssl-dev libprotobuf-dev
   ```
-  * On Red Hat Enterprise Linux 9.4:
+  * On Red Hat Enterprise Linux 9.4 and 10.0:
   ```
     $ sudo yum install openssl-devel libcurl-devel protobuf-devel
   ```
-  * On CentOS Stream 9:
+  * On CentOS Stream 9 and 10:
   ```
     $ sudo dnf install libcurl-devel protobuf-devel
   ```
@@ -464,7 +470,7 @@ The SGX PSW provides 3 services: launch, EPID-based attestation, and algorithm a
 
 #### Using the local repo(recommended)
 
-|   |Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12|Red Hat Enterprise Linux 9.4, CentOS Stream 9, Anolis OS 8.10, and Azure Linux 3.0| SUSE Linux Enterprise Server 15|
+|   |Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12|Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10, Anolis OS 8.10, and Azure Linux 3.0| SUSE Linux Enterprise Server 15|
 | ------------ | ------------ | ------------ | ------------ |
 |launch service |apt-get install libsgx-urts|yum install libsgx-urts|zypper install libsgx-urts|
 |algorithm agnostic attestation service|apt-get install libsgx-quote-ex libsgx-urts|yum install libsgx-quote-ex libsgx-urts|zypper install libsgx-quote-ex libsgx-urts|
@@ -488,7 +494,7 @@ Some packages are configured with recommended dependency on other packages that 
 ```
   --no-install-recommends
 ```
-* On Red Hat Enterprise Linux 9.4, CentOS Stream 9, and Anolis OS 8.10:
+* On Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10, and Anolis OS 8.10:
 ```
   --setopt=install_weak_deps=False
 ```
