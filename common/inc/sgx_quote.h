@@ -42,21 +42,27 @@
 #define _SGX_QUOTE_H_
 
 #include "sgx_report.h"
+#include "sgx_defs.h" // for SGX_DEPRECATED_MSG
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #pragma pack(push, 1)
-typedef struct _uuid_t
+// SGX_DEPRECATED_MSG("EPID-based functionality is no longer supported (removed in v2.28). Please migrate to use one of the supported quote types, such as sgx_quote3_t and further versions. Add -Wno-deprecated-declarations to suppress this warning.")
+typedef uint8_t sgx_epid_group_id_t[4];
+
+SGX_DEPRECATED_MSG("EPID-based functionality is no longer supported (removed in v2.28). Please migrate to use one of the supported quote types, such as sgx_quote3_t and further versions. Add -Wno-deprecated-declarations to suppress this warning.")
+typedef struct _spid_t
 {
     uint8_t             id[16];
-} sgx_uuid_t;
+} sgx_spid_t;
 
-typedef struct _user_data_t
+// SGX_DEPRECATED_MSG("EPID-based functionality is no longer supported (removed in v2.28). Please migrate to use one of the supported quote types, such as sgx_quote3_t and further versions. Add -Wno-deprecated-declarations to suppress this warning.")
+typedef struct _basename_t
 {
-    uint8_t             name[20];
-} sgx_user_data_t;
+    uint8_t             name[32];
+} sgx_basename_t;
 
 
 typedef struct _quote_nonce
@@ -70,21 +76,23 @@ typedef enum
     SGX_LINKABLE_SIGNATURE
 } sgx_quote_sign_type_t;
 
+SGX_DEPRECATED_MSG("EPID-based functionality is no longer supported (removed in v2.28). Please migrate to use one of the supported quote types, such as sgx_quote3_t and further versions. Add -Wno-deprecated-declarations to suppress this warning.")
 typedef struct _quote_t
 {
     uint16_t            version;        /* 0   */
     uint16_t            sign_type;      /* 2   */
-    uint32_t            reserved;       /* 4   */
+    sgx_epid_group_id_t epid_group_id;  /* 4   */
     sgx_isv_svn_t       qe_svn;         /* 8   */
     sgx_isv_svn_t       pce_svn;        /* 10  */
-    sgx_uuid_t          qe_vendor_id;   /* 12  */
-    sgx_user_data_t     user_data;      /* 28  */
+    uint32_t            xeid;           /* 12  */
+    sgx_basename_t      basename;       /* 16  */
     sgx_report_body_t   report_body;    /* 48  */
-    uint32_t            auth_data_len;  /* 432 */
-    uint8_t             auth_data[];    /* 436 */
+    uint32_t            signature_len;  /* 432 */
+    uint8_t             signature[];    /* 436 */
 } sgx_quote_t;
 
 #define SGX_PLATFORM_INFO_SIZE 101
+SGX_DEPRECATED_MSG("PSE functionality is no longer supported (removed in v2.28). Add -Wno-deprecated-declarations to suppress this warning.")
 typedef struct _platform_info
 {
     uint8_t platform_info[SGX_PLATFORM_INFO_SIZE];
@@ -138,4 +146,3 @@ typedef struct _qe_report_info_t {
 #endif
 
 #endif
-

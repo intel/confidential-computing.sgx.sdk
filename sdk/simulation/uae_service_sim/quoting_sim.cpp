@@ -35,11 +35,12 @@
 #include "util.h"
 #include "se_memcpy.h"
 #include "sgx_read_rand.h"
+#include "sgx_quote_3.h"
 #include "se_quote_internal.h"
 #include "deriv.h"
 #include "cpusvn_util.h"
 #include "crypto_wrapper.h"
-#include "../../../common/inc/sgx_error.h"
+#include "sgx_error.h"
 
 
 const static sgx_att_key_id_t g_epid_unlinkable_att_key_id = {
@@ -97,7 +98,7 @@ static const se_owner_epoch_t SIMU_OWNER_EPOCH_MSR = {
 //simulated QE ISVSVN
 static const sgx_isv_svn_t QE_ISVSVN = 0XEF;
 static const sgx_isv_svn_t PCE_ISVSVN = 0xEF;
-static const sgx_uuid_t QE_VENDOR_ID = { 0x93, 0x9A, 0x72, 0x33, 0xF7, 0x9C, 0x4C, 0xA9, 0x94, 0x0A, 0x0D, 0xB3, 0x95, 0x7F, 0x06, 0x07 };
+static const uint8_t QE_VENDOR_ID[16] = { 0x93, 0x9A, 0x72, 0x33, 0xF7, 0x9C, 0x4C, 0xA9, 0x94, 0x0A, 0x0D, 0xB3, 0x95, 0x7F, 0x06, 0x07 };
 
 static sgx_status_t create_qe_report(const sgx_report_t *p_report,
                                     const sgx_quote_nonce_t* p_quote_nonce,
@@ -259,7 +260,7 @@ sgx_status_t SGXAPI sgx_get_quote_size_ex(const sgx_att_key_id_t *p_att_key_id,
 {
     if (NULL ==p_att_key_id || NULL == p_quote_size)
         return SGX_ERROR_INVALID_PARAMETER;
-    *p_quote_size = static_cast<uint32_t>(sizeof(sgx_quote_t));
+    *p_quote_size = static_cast<uint32_t>(sizeof(sgx_quote3_t));
     return SGX_SUCCESS;
 }
 
@@ -272,8 +273,10 @@ sgx_status_t SGXAPI  sgx_get_quote_ex(const sgx_report_t *p_app_report,
     if(NULL ==p_att_key_id || NULL == p_app_report || NULL == p_quote)
         return SGX_ERROR_INVALID_PARAMETER;
 
+    se_static_assert(sizeof(sgx_quote_t) == sizeof(sgx_quote3_t));
+
     sgx_status_t ret = SGX_SUCCESS;
-    uint64_t required_buffer_size = sizeof(sgx_quote_t);
+    uint64_t required_buffer_size = sizeof(sgx_quote3_t);
     sgx_cpu_svn_t cpusvn = {{0}};
 
     /* If the p_quote is not NULL, then we should make sure the buffer size is
@@ -282,7 +285,7 @@ sgx_status_t SGXAPI  sgx_get_quote_ex(const sgx_report_t *p_app_report,
         return SGX_ERROR_INVALID_PARAMETER;
     }
 
-    sgx_quote_t * l_quote = (sgx_quote_t *)p_quote;
+    sgx_quote3_t * l_quote = (sgx_quote3_t *)p_quote;
 
     if(SGX_SUCCESS != get_cpusvn(&cpusvn))
     {
@@ -296,28 +299,30 @@ sgx_status_t SGXAPI  sgx_get_quote_ex(const sgx_report_t *p_app_report,
 
     /* Copy the data in the report into quote body. */
     memset(l_quote, 0xEE, quote_size);
-    l_quote->version = 3;
-    l_quote->sign_type = (uint16_t)2;
-    l_quote->reserved = 0;
-    l_quote->qe_svn = QE_ISVSVN;
-    l_quote->pce_svn = PCE_ISVSVN;
-    if(memcpy_s(&l_quote->qe_vendor_id, sizeof(sgx_uuid_t),
-             &QE_VENDOR_ID, sizeof(QE_VENDOR_ID))){
+    constexpr uint16_t QE_QUOTE_VERSION_V3 = 3;
+    l_quote->header.version = QE_QUOTE_VERSION_V3;
+    l_quote->header.att_key_type = SGX_QL_ALG_ECDSA_P256;
+    l_quote->header.att_key_data_0 = (uint32_t)0; // Reserved field
+    l_quote->header.qe_svn = QE_ISVSVN;
+    l_quote->header.pce_svn = PCE_ISVSVN;
+    if(memcpy_s(&l_quote->header.vendor_id, sizeof(l_quote->header.vendor_id),
+             QE_VENDOR_ID, sizeof(QE_VENDOR_ID))){
         return SGX_ERROR_UNEXPECTED;
     }
+    memset(l_quote->header.user_data, 0, sizeof(l_quote->header.user_data));
     if(memcpy_s(&l_quote->report_body, sizeof(l_quote->report_body),
              &((const sgx_report_t *)p_app_report)->body, sizeof(sgx_report_body_t)))
     {
         return SGX_ERROR_UNEXPECTED;
     }
-    l_quote->auth_data_len = (uint32_t)0;
+    l_quote->signature_data_len = (uint32_t)0;
 
     const sgx_quote_nonce_t *p_nonce = p_qe_report_info ? &p_qe_report_info->nonce:NULL;
     sgx_report_t *p_qe_report = p_qe_report_info ? &p_qe_report_info->qe_report:NULL;
 
     if(p_qe_report)
         ret = create_qe_report(p_app_report, p_nonce, (uint8_t*)l_quote,
-                               quote_size, &cpusvn, p_qe_report);
+                               (uint32_t)required_buffer_size, &cpusvn, p_qe_report);
 
     return ret;
 } //sgx_get_quote_ex

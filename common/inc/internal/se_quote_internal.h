@@ -90,8 +90,7 @@ typedef struct _se_encrypted_sign
     uint8_t             nrp_mac[];              /* 664, this filed contains the encrypted nrps followed by the mac */
 }se_encrypted_sign_t;
 #pragma pack(pop)
-
-#define SE_QUOTE_LENGTH_WITHOUT_SIG         (sizeof(sgx_quote_t)        \
+#define SE_QUOTE_LENGTH_WITHOUT_SIG         (sizeof(sgx_quote3_t)        \
                                             + sizeof(se_wrap_key_t)     \
                                             + QUOTE_IV_SIZE             \
                                             + sizeof(uint32_t)          \
