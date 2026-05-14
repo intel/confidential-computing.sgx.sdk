@@ -43,6 +43,7 @@
 #include <sgx_tcrypto.h>
 #include "pcl_common.h"
 #include "encryptip.h"
+#include "sgx_safe_file_ops.h"
 #include "sgx_pcl_guid.h"
 
 /*
@@ -693,7 +694,7 @@ static encip_ret_e read_file(IN const char* const ifname, OUT uint8_t** buf_pp, 
     if(NULL == ifname || NULL == buf_pp || NULL == size_out)
          return ENCIP_ERROR_READF_INVALID_PARAM;
 
-    FILE* fin = fopen(ifname, "rb");
+    FILE* fin = sgx_safe_fopen(ifname, "rb");
     if(NULL == fin)
         return ENCIP_ERROR_READF_OPEN;
 
@@ -735,7 +736,7 @@ static encip_ret_e write_file(IN const char* const ofname, IN uint8_t* buf, size
 {
     if(NULL == ofname || NULL == buf)
          return ENCIP_ERROR_WRITEF_INVALID_PARAM;
-    FILE* fout = fopen(ofname, "wb");
+    FILE* fout = sgx_safe_fopen(ofname, "wb");
     if(NULL == fout)
         return ENCIP_ERROR_WRITEF_OPEN;
 

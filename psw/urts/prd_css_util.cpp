@@ -35,6 +35,7 @@
 #include "prd_css_util.h"
 #include "se_memcpy.h"
 #include "util.h"
+#include "sgx_safe_file_ops.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -50,7 +51,7 @@ extern "C" int read_prd_css(const prd_css_path_t prd_css_path, enclave_css_t *cs
     memset(&prd_css, 0, sizeof(enclave_css_t));
 
     FILE * fp = NULL;
-    fp = fopen(prd_css_path, "rb");
+    fp = sgx_safe_fopen(prd_css_path, "rb");
     if(fp == NULL)
         return SGX_ERROR_INVALID_PARAMETER;
 

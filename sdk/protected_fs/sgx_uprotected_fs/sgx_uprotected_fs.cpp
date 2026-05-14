@@ -40,6 +40,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include "sgx_safe_file_ops.h"
 
 #include "sgx_tprotected_fs_u.h"
 #include "../sgx_tprotected_fs/protected_fs_nodes.h"
@@ -86,9 +87,11 @@ uint8_t* u_sgxprotectedfs_exclusive_file_map(const char* filename, uint8_t read_
 		*error_code = EINVAL;
 		return NULL;
 	}
-
-	// open the file with OS API so we can 'lock' the file and get exclusive access to it
-	fd = open(filename,	O_CREAT | (read_only ? O_RDONLY : O_RDWR) | O_LARGEFILE, mode); // create the file if it doesn't exists, read-only/read-write
+	
+	// create the file if it doesn't exists, read-only/read-write; reject symlinks
+	// anywhere in the path (full-path protection via openat2(RESOLVE_NO_SYMLINKS)
+	// when available, falling back to O_NOFOLLOW on older kernels).
+	fd = sgx_safe_open(filename, O_CREAT | (read_only ? O_RDONLY : O_RDWR) | O_LARGEFILE, mode);
 	if (fd == -1)
 	{
 		DEBUG_PRINT("open returned -1, errno %d\n", errno);
@@ -185,12 +188,25 @@ int32_t u_sgxprotectedfs_file_remap(const char* filename, uint8_t** file_addr, i
 		return -1;
 	}
 
-	result = truncate(filename, new_size);
-	if (result != 0)
+	/* Use sgx_safe_open() + ftruncate to avoid following symlinks (in any
+	 * path component) that may have replaced the file after the initial open. */
 	{
-		int err = errno;
-		DEBUG_PRINT("truncate returned %d, errno %d\n", result, err);
-		return err ? err : -1;
+		int trunc_fd = sgx_safe_open(filename, O_WRONLY | O_LARGEFILE, 0);
+		if (trunc_fd < 0)
+		{
+			int err = errno;
+			DEBUG_PRINT("open for truncate returned -1, errno %d\n", err);
+			return err ? err : -1;
+		}
+		result = ftruncate(trunc_fd, new_size);
+		if (result != 0)
+		{
+			int err = errno;
+			DEBUG_PRINT("ftruncate returned %d, errno %d\n", result, err);
+			close(trunc_fd);
+			return err ? err : -1;
+		}
+		close(trunc_fd);
 	}
 
 	f_new_addr = mremap(*file_addr, old_size, new_size, MREMAP_MAYMOVE);
@@ -265,7 +281,7 @@ uint8_t u_sgxprotectedfs_fwrite_recovery_file(uint8_t* fileaddress, const char* 
 
 	for (int i = 0; i < MAX_FOPEN_RETRIES; i++)
 	{
-		f = fopen(filename, "wb");
+		f = sgx_safe_fopen(filename, "wb");
 		if (f != NULL)
 			break;
 		usleep(MILISECONDS_SLEEP_FOPEN);
@@ -339,7 +355,7 @@ int32_t u_sgxprotectedfs_do_file_recovery(const char* filename, const char* reco
 			return (int32_t)NULL;
 		}
 	
-		recovery_file = fopen(recovery_filename, "rb");
+		recovery_file = sgx_safe_fopen(recovery_filename, "rb");
 		if (recovery_file == NULL)
 		{
 			DEBUG_PRINT("fopen of recovery file returned NULL - no recovery file exists\n");
@@ -383,7 +399,7 @@ int32_t u_sgxprotectedfs_do_file_recovery(const char* filename, const char* reco
 			break;
 		}
 
-		source_file = fopen(filename, "r+b");
+		source_file = sgx_safe_fopen(filename, "r+b");
 		if (source_file == NULL)
 		{
 			DEBUG_PRINT("fopen returned NULL\n");
