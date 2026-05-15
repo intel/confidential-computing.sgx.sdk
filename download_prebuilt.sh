@@ -6,7 +6,7 @@
 
 top_dir=`dirname $0`
 out_dir=$top_dir
-VERSION=2.29
+VERSION=2.30
 optlib_name=optimized_libs_${VERSION}.tar.gz
 ae_file_name=prebuilt_ae_${VERSION}.tar.gz
 binutils_file_name=as.ld.objdump.r4.tar.gz

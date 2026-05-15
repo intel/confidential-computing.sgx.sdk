@@ -78,9 +78,9 @@ DeliveryName	InstallName	FileCheckSum	FileFeature	FileOwner
 <deliverydir>/psw/enclave_common/sgx_enclave_common.h	<installdir>/package/include/sgx_enclave_common.h	0	main	STP
 <deliverydir>/external/ippcp_internal/inc/ippcp.h	<installdir>/package/include/ipp/ippcp.h	0	main	STP
 <deliverydir>/external/ippcp_internal/inc/ippcpdefs.h	<installdir>/package/include/ipp/ippcpdefs.h	0	main	STP
-<deliverydir>/external/ippcp_internal/inc/ippversion.h	<installdir>/package/include/ipp/ippversion.h	0	main	STP
+<deliverydir>/external/ippcp_internal/inc/ippcpversion.h	<installdir>/package/include/ipp/ippcpversion.h	0	main	STP
 <deliverydir>/external/ippcp_internal/inc/sgx_ippcp.h	<installdir>/package/include/ipp/sgx_ippcp.h	0	main	STP
-<deliverydir>/external/ippcp_internal/inc/ippcp/fips_cert.h	<installdir>/package/include/ipp/ippcp/fips_cert.h	0	main	STP
+<deliverydir>/external/ippcp_internal/inc/fips_cert.h	<installdir>/package/include/ipp/fips_cert.h	0	main	STP
 <deliverydir>/external/sgx-emm/emm_src/include/sgx_mm.h	<installdir>/package/include/sgx_mm.h	0	main	STP
 <deliverydir>/linux/installer/common/sdk/install.sh	<installdir>/scripts/install.sh	0	main	STP
 <deliverydir>/linux/installer/common/sdk/Makefile	<installdir>/Makefile	0	main	STP

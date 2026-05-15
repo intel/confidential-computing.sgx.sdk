@@ -46,10 +46,10 @@ static void fips_self_test_rsa_sign_verify()
         uint8_t *p_key_buf = NULL;
         do
         {
-            FIPS_SELFTEST_FUNC_1(test_result, fips_selftest_ippsRSASignVerify_PKCS1v15_rmf_get_size_keys, &key_buf_size);
+            FIPS_SELFTEST_FUNC_1(test_result, fips_selftest_ippsRSASign_PKCS1v15_rmf_get_size_keys, &key_buf_size);
             p_key_buf = (uint8_t *)malloc(key_buf_size);
             ALLOC_ERROR_BREAK(p_key_buf, ret);
-            FIPS_SELFTEST_FUNC_2(test_result, fips_selftest_ippsRSASignVerify_PKCS1v15_rmf_get_size, &buf_size, p_key_buf);
+            FIPS_SELFTEST_FUNC_2(test_result, fips_selftest_ippsRSASign_PKCS1v15_rmf_get_size, &buf_size, p_key_buf);
             p_buf = (uint8_t *)malloc(buf_size);
             ALLOC_ERROR_BREAK(p_buf, ret);
             FIPS_SELFTEST_FUNC_2(test_result, fips_selftest_ippsRSASign_PKCS1v15_rmf, p_buf, p_key_buf);
