@@ -141,9 +141,9 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence_host(
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     quote3_error_t func_ret = SGX_QL_ERROR_UNEXPECTED;
     uint8_t *p_quote = NULL;
-    uint32_t quote_size = 0;
+    uint32_t quote_size = RAW_QUOTE_MAX_SIZE;
     uint8_t *p_cbor_evidence = NULL;
-    uint32_t cbor_evidence_size = 0;
+    uint32_t cbor_evidence_size = CBOR_QUOTE_MAX_SIZE;
     sgx_cert_t cert = {0};
     uint8_t *pub_key_buff = NULL;
     size_t pub_key_buff_size = KEY_BUFF_SIZE;
@@ -184,12 +184,14 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence_host(
                 func_ret = SGX_QL_ERROR_OUT_OF_MEMORY;
                 break;
             }
+            memset(p_quote, 0, RAW_QUOTE_MAX_SIZE);
 
             p_cbor_evidence = (uint8_t*)malloc(CBOR_QUOTE_MAX_SIZE);
             if (!p_cbor_evidence) {
                 func_ret = SGX_QL_ERROR_OUT_OF_MEMORY;
                 break;
             }
+            memset(p_cbor_evidence, 0, CBOR_QUOTE_MAX_SIZE);
             
             if (sgx_cert_find_extension(
                 &cert,
@@ -197,12 +199,6 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence_host(
                 p_cbor_evidence,
                 &cbor_evidence_size) == SGX_SUCCESS)
             {
-                if (cbor_evidence_size > CBOR_QUOTE_MAX_SIZE)
-                {
-                    // buffer overflow, return error
-                    func_ret = SGX_QL_ERROR_UNEXPECTED;
-                    break;
-                }
                 // if tcg tagged evidence oid found, extract it here
                 ret = extract_cbor_evidence_and_compare_hash(p_cbor_evidence, cbor_evidence_size,
                             pub_key_buff, pub_key_buff_size,
@@ -219,13 +215,6 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence_host(
                     p_quote,
                     &quote_size) == SGX_SUCCESS)
            {
-                // if no tcg tagged evidence oid found, try to find the legacy
-                // oid
-                if (quote_size > RAW_QUOTE_MAX_SIZE)
-                {
-                    func_ret = SGX_QL_ERROR_UNEXPECTED;
-                    break;
-                }
                 ret = sgx_tls_compare_quote_hash(p_quote,
                             pub_key_buff, pub_key_buff_size);
                 if (ret != SGX_SUCCESS){

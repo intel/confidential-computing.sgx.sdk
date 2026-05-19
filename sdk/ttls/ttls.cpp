@@ -40,6 +40,7 @@
 #include <sgx_trts.h>
 
 #include "sgx_ttls_t.h"
+#include "se_memcpy.h"
 
 #include "cbor.h"
 #include <openssl/pem.h>
@@ -72,7 +73,7 @@ sgx_status_t cbor_bstr_from_pk_sha(const uint8_t *pub_key, size_t key_len, cbor_
 {
     uint8_t pk_sha[SHA512_DIGEST_LENGTH] = {0}; // big enough to hold hash for different algo
     uint8_t pk_der[PUB_KEY_MAX_SIZE] = {0};
-    size_t pk_der_size_byte = 0;
+    size_t pk_der_size_byte = PUB_KEY_MAX_SIZE;
     uint8_t *temp_sha = NULL;
     size_t sha_len = 0;
     uint8_t *ret_sha = NULL;
@@ -98,7 +99,11 @@ sgx_status_t cbor_bstr_from_pk_sha(const uint8_t *pub_key, size_t key_len, cbor_
     temp_sha = (uint8_t*)malloc(sha_len);
     if (temp_sha == NULL) return SGX_ERROR_OUT_OF_MEMORY;
 
-    memcpy(temp_sha, pk_sha, sha_len);
+    if (memcpy_s(temp_sha, sha_len, pk_sha, sha_len) != 0) {
+        free(temp_sha);
+        return SGX_ERROR_UNEXPECTED;
+    }
+
     cbor_item_t* cbor_bstr = cbor_build_bytestring(temp_sha, sha_len);
 
     free(temp_sha);
@@ -478,9 +483,9 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence(
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     quote3_error_t func_ret = SGX_QL_ERROR_UNEXPECTED;
     uint8_t *p_quote = NULL;
-    uint32_t quote_size = 0;
+    uint32_t quote_size = RAW_QUOTE_MAX_SIZE;
     uint8_t *p_cbor_evidence = NULL;
-    uint32_t cbor_evidence_size = 0;
+    uint32_t cbor_evidence_size = CBOR_QUOTE_MAX_SIZE;
     sgx_ql_qe_report_info_t qve_report_info;
     uint32_t collateral_expiration_status = 0;
     sgx_cert_t cert = {0};
@@ -522,24 +527,23 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence(
                 func_ret = SGX_QL_ERROR_OUT_OF_MEMORY;
                 break;
             }
+            memset(p_quote, 0, RAW_QUOTE_MAX_SIZE);
+
             p_cbor_evidence = (uint8_t*)malloc(CBOR_QUOTE_MAX_SIZE);
             if (!p_cbor_evidence) {
                 func_ret = SGX_QL_ERROR_OUT_OF_MEMORY;
                 break;
             }
+            memset(p_cbor_evidence, 0, CBOR_QUOTE_MAX_SIZE);
 
             // first find cbor evidence here
-            if (sgx_cert_find_extension(
+            ret = sgx_cert_find_extension(
                 &cert,
                 g_evidence_oid,
                 p_cbor_evidence,
-                &cbor_evidence_size) == SGX_SUCCESS)
+                &cbor_evidence_size);
+            if (ret == SGX_SUCCESS)
             {
-                if (cbor_evidence_size > CBOR_QUOTE_MAX_SIZE)
-                {
-                    func_ret = SGX_QL_ERROR_UNEXPECTED;
-                    break;
-                }
                 ret = extract_cbor_evidence_and_compare_hash(p_cbor_evidence, cbor_evidence_size,
                             pub_key_buff, pub_key_buff_size, p_quote, &quote_size);
                 if (ret != SGX_SUCCESS)
@@ -548,6 +552,11 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence(
                     break;
                 }
             }
+            else if (ret == SGX_ERROR_INVALID_PARAMETER)
+            {
+                func_ret = SGX_QL_ERROR_INVALID_PARAMETER;
+                break;
+            }
             // otherwise, try to find legacy sgx oid
             else if (sgx_cert_find_extension(
                     &cert,
@@ -555,11 +564,6 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence(
                     p_quote,
                     &quote_size) == SGX_SUCCESS)
             {
-                if (quote_size > RAW_QUOTE_MAX_SIZE)
-                {
-                    func_ret = SGX_QL_ERROR_UNEXPECTED;
-                    break;
-                }
                 ret = sgx_tls_compare_quote_hash(p_quote,
                             pub_key_buff, pub_key_buff_size);
                 if (ret != SGX_SUCCESS)
