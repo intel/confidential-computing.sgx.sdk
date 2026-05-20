@@ -39,7 +39,7 @@ stdenvNoCC.mkDerivation { \n\
 \t\t/nix/store/xmprbk52mlcdsljz66m8yf7cf0xf36n1-glibc-2.38-44 \n\
 \t\t/nix/store/wp7kc5y840ldi5sd8j81fj4dabccff2d-binutils-wrapper-2.38 \n\
 \t\t/nix/store/95nvd0v2xzf9vcv3kk4nmkjlcalc1jn7-gcc-wrapper-9.5.0 \n\
-\t\t/nix/store/bwc29jqdwk3gqya220f2lr3yvyw02rrm-nasm-2.16.01 \n\
+\t\t/nix/store/q3lxapy8jsac28nv39wp3pqdkcdglq5v-nasm-2.16.03 \n\
 \t]; \n\
 \n\
 \tshellHook = '' \n\
@@ -50,7 +50,10 @@ stdenvNoCC.mkDerivation { \n\
 
 #install the required software
 RUN touch .bash_profile \
-&& curl https://releases.nixos.org/nix/nix-2.18.0/install | sh \
+&& curl -fL https://releases.nixos.org/nix/nix-2.24.6/install -o nix-install \
+&& echo "9f4535a9e90ab72874cf20ee1f9d41a130b16a56519dc3eec729540fcc78316f  nix-install" | sha256sum -c - \
+&& sh nix-install \
+&& rm nix-install \
 && . /home/user/.nix-profile/etc/profile.d/nix.sh \
 && nix-env -i /nix/store/n0wh7aglap7fl8jfnmgnn1vdv71a9br9-autoconf-2.69 \
 && nix-env -i /nix/store/laf3s9p2rsk2sz78v83ni7wvp4qsbii3-automake-1.16.5 \
@@ -68,7 +71,7 @@ RUN touch .bash_profile \
 && nix-env -i /nix/store/wp7kc5y840ldi5sd8j81fj4dabccff2d-binutils-wrapper-2.38 \
 && nix-env --set-flag priority 10 binutils-wrapper-2.38 \
 && nix-env -i /nix/store/95nvd0v2xzf9vcv3kk4nmkjlcalc1jn7-gcc-wrapper-9.5.0 \
-&& nix-env -i /nix/store/bwc29jqdwk3gqya220f2lr3yvyw02rrm-nasm-2.16.01
+&& nix-env -i /nix/store/q3lxapy8jsac28nv39wp3pqdkcdglq5v-nasm-2.16.03
 
 
 #config nix-shell
