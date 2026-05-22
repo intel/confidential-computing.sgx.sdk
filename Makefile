@@ -5,6 +5,7 @@
 #
 
 include buildenv.mk
+
 .PHONY: all tips preparation psw sdk_no_mitigation sdk clean rebuild tdx servtd_attest servtd_attest_preparation ipp sdk_install_pkg_no_mitigation sdk_install_pkg  sdk_install_pkg_from_source psw_install_pkg
 
 all: tips
@@ -265,6 +266,11 @@ deb_pcs_client_tool:
 	$(MAKE) -C external/dcap_source/tools/PcsClientTool deb_sgx_pcs_client_pkg
 	$(CP) external/dcap_source/tools/PcsClientTool/installer/linux/deb/*pcs-client-tool/*pcs-client-tool*deb ./linux/installer/deb/
 
+.PHONY: deb_tee_poe_gen_tool
+deb_tee_poe_gen_tool:
+	$(MAKE) -C external/dcap_source PoeTools_deb
+	$(CP) external/dcap_source/tools/PoeTools/build_infrastructure/installer/linux/deb/intel-tee-poe-gen-tool/intel-tee-poe-gen-tool*.deb ./linux/installer/deb/
+
 .PHONY: deb_psw_pkg
 deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_libsgx_qe3_logic \
@@ -290,7 +296,8 @@ deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_tdx_attest \
              deb_tee_appraisal_tool \
              deb_libsgx_ae_qae \
-             deb_pcs_client_tool
+             deb_pcs_client_tool \
+             deb_tee_poe_gen_tool
 
 .PHONY: deb_local_repo
 deb_local_repo: deb_psw_pkg
@@ -435,6 +442,11 @@ rpm_pcs_client_tool:
 	$(MAKE) -C external/dcap_source/tools/PcsClientTool rpm_sgx_pcs_client_pkg
 	$(CP) external/dcap_source/tools/PcsClientTool/installer/linux/rpm/*pcs-client-tool/*pcs-client-tool*rpm ./linux/installer/rpm/
 
+.PHONY: rpm_tee_poe_gen_tool
+rpm_tee_poe_gen_tool:
+	$(MAKE) -C external/dcap_source PoeTools_rpm
+	$(CP) external/dcap_source/tools/PoeTools/build_infrastructure/installer/linux/rpm/intel-tee-poe-gen-tool/intel-tee-poe-gen-tool*.rpm ./linux/installer/rpm/
+
 .PHONY: rpm_psw_pkg
 rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_libsgx_pce_logic \
@@ -460,7 +472,8 @@ rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_tdx_attest \
              rpm_tee_appraisal_tool \
              rpm_libsgx_ae_qae \
-             rpm_pcs_client_tool
+             rpm_pcs_client_tool \
+             rpm_tee_poe_gen_tool
 
 .PHONY: rpm_local_repo
 rpm_local_repo: rpm_psw_pkg
