@@ -17,11 +17,12 @@ tips:
 	@echo "        1) ensure that you have installed required tools described in README.md in same directory"
 	@echo "        2) enter the command: \"make sdk\""
 	@echo "     2. If you want to build Intel(R) SGX PSW with default configuration, please take the following steps:"
-	@echo "        1) ensure that you have installed additional required tools decribed in README.md in same directory"
+	@echo "        1) ensure that you have installed additional required tools described in README.md in same directory"
 	@echo "        2) ensure that you have installed latest Intel(R) SGX SDK Installer which could be downloaded from: https://software.intel.com/en-us/sgx-sdk/download" and followed Installation Guide in the same page to finish installation.
-	@echo "        3) enter the commmand: \"make psw\""
+	@echo "        3) enter the command: \"make psw\""
 	@echo "     3. If you want to build other targets, please also follow README.md in same directory"
 
+USE_PREBUILT_IPP ?= yes
 
 preparation:
 # As SDK build needs to clone and patch openmp, we cannot support the mode that download the source from github as zip.
@@ -53,7 +54,14 @@ preparation:
 	cd external/cbor/sgx_libcbor && git apply ../sgx_cbor.patch >/dev/null 2>&1 || git apply ../sgx_cbor.patch --check -R
 	cd external/ippcp_internal/ipp-crypto && git apply ../0001-Cryptography-Primitives-for-SGX.patch > /dev/null 2>&1 || git apply ../0001-Cryptography-Primitives-for-SGX.patch --check -R
 	cd external/ippcp_internal/ipp-crypto && mkdir -p build
+ifeq ($(USE_PREBUILT_IPP), yes)
 	./download_prebuilt.sh
+	@echo "Preparation finished. NOTE: prebuilt IPP Crypto libraries downloaded."
+	@echo "If you want to compile IPP Crypto libraries from source, run \"make preparation USE_PREBUILT_IPP=no\""
+else
+	./download_prebuilt.sh no_prebuilt_ipp
+	@echo "Preparation finished. NOTE: IPP Crypto libraries need to be built from source. Run 'make ipp' to build them or use one of the '*_from_source' targets."
+endif
 	./external/dcap_source/QuoteGeneration/download_prebuilt.sh
 	cd external/libcxxrt/libcxxrt_code && git apply ../sgx_libcxxrt.patch >/dev/null 2>&1 || git apply ../sgx_libcxxrt.patch --check -R
 
@@ -92,6 +100,7 @@ servtd_attest_preparation:
 	cd external/libcxxrt/libcxxrt_code && (git apply ../sgx_libcxxrt.patch >/dev/null 2>&1 || git apply ../sgx_libcxxrt.patch --check -R)
 
 ipp:
+	@command -v nasm >/dev/null 2>&1 || (echo "nasm not found, please install nasm" && exit 1)
 	$(MAKE) -C external/ippcp_internal/ clean
 	$(MAKE) -C external/ippcp_internal/ MITIGATION-CVE-2020-0551=LOAD
 	$(MAKE) -C external/ippcp_internal/ clean
