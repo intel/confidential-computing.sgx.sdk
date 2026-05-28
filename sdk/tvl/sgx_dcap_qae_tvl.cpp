@@ -18,6 +18,13 @@
 #include "sgx_enclave_identity_helper.h"
 
 
+/* Maximum byte length (excluding NUL) accepted for individual strings passed
+ * into tee_verify_qae_report_and_identity().  Inputs exceeding these limits
+ * are rejected with TEE_ERROR_INVALID_PARAMETER.  Callers must ensure their
+ * policy JSON and JWT strings fit within these bounds. */
+#define TVL_MAX_POLICY_LEN (64u * 1024u)   /* policy JSON strings           */
+#define TVL_MAX_JWT_LEN    (64u * 1024u)   /* appraisal / QVL JWT strings   */
+
 #define SGX_ERR_BREAK(x) {if (x != SGX_SUCCESS) break;}
 
 #define SAFE_FREE(x) if(x!=NULL){free(x);x=NULL;}
@@ -36,10 +43,12 @@ static void tmp_mem_free(qae_verification_input_t *input)
         case AUTH_POLICY:
             SAFE_FREE(input->input.auth_policy.p_quote);
             SAFE_FREE(input->input.auth_policy.p_appraisal_jwt);
-            SAFE_FREE_CONST(&input->input.auth_policy.p_policy_bundle->p_tenant_identity_policy);
-            SAFE_FREE_CONST(&input->input.auth_policy.p_policy_bundle->tdqe_policy.p_policy);
-            SAFE_FREE_CONST(&input->input.auth_policy.p_policy_bundle->platform_policy.p_policy);
-            SAFE_FREE(input->input.auth_policy.p_policy_bundle);
+            if (input->input.auth_policy.p_policy_bundle != NULL) {
+                SAFE_FREE_CONST(&input->input.auth_policy.p_policy_bundle->p_tenant_identity_policy);
+                SAFE_FREE_CONST(&input->input.auth_policy.p_policy_bundle->tdqe_policy.p_policy);
+                SAFE_FREE_CONST(&input->input.auth_policy.p_policy_bundle->platform_policy.p_policy);
+                SAFE_FREE(input->input.auth_policy.p_policy_bundle);
+            }
             SAFE_FREE(input->input.auth_policy.p_result);
             break;
         case AUTH_OWNER:
@@ -56,27 +65,40 @@ static void tmp_mem_free(qae_verification_input_t *input)
     }
 }
 #define TEE_ERROR_RETURN(x,y) if(x!=TEE_SUCCESS){tmp_mem_free(y); return x;} 
-//copy all memory into enclave before using
-static quote3_error_t deep_copy (char *in, char **out)
+/* Copy a NUL-terminated host string into a freshly allocated, enclave-owned buffer.
+ *
+ * The source must be an untrusted (host) pointer.  The full max_len+1 window
+ * is verified to lie entirely outside the EPC *before* strnlen runs, so a
+ * straddling pointer cannot cause the scan to read enclave memory.  *out
+ * always points to a new malloc'd buffer owned by the caller (or tmp_mem_free).
+ *
+ * Returns TEE_ERROR_INVALID_PARAMETER if:
+ *  - in or out is NULL, or max_len == 0
+ *  - [in, in+max_len+1) is not entirely outside the enclave (EPC or straddling)
+ *  - string is unterminated within max_len bytes
+ */
+static quote3_error_t deep_copy(const char *in, size_t max_len, char **out)
 {
-    if(in != NULL)
-    {
-        if(sgx_is_within_enclave(in, sizeof(in))){
-            *out = in;
-        }
-        else {
-            *out = (char *)malloc(strlen(in)+1);
-            if(*out == NULL)
-            {
-                return TEE_ERROR_OUT_OF_MEMORY;
-            }
-            memset(*out, 0, strlen(in)+1);
-            memcpy(*out, in, strlen(in));
-        }
-    }
-    else{
+    if (in == NULL || out == NULL || max_len == 0)
         return TEE_ERROR_INVALID_PARAMETER;
-    }
+
+    /* Verify the entire scan window is outside the EPC before touching any
+     * host memory — prevents strnlen from reading enclave pages on a
+     * straddling pointer. */
+    if (!sgx_is_outside_enclave(in, max_len + 1))
+        return TEE_ERROR_INVALID_PARAMETER;
+
+    size_t n = strnlen(in, max_len + 1);
+    if (n > max_len)
+        return TEE_ERROR_INVALID_PARAMETER;
+
+    char *p = (char *)malloc(n + 1);
+    if (p == NULL)
+        return TEE_ERROR_OUT_OF_MEMORY;
+
+    memcpy(p, in, n);   /* length is the locally-captured n — no re-read */
+    p[n] = '\0';
+    *out = p;
     return TEE_SUCCESS;
 }
 
@@ -93,6 +115,7 @@ static quote3_error_t tee_verify_appraisal_result(
 {   
     qae_verification_input_t tmp_input;
     memset(&tmp_input, 0, sizeof(qae_verification_input_t));
+    tmp_input.mode = APPRAISAL;
     quote3_error_t dcap_ret = TEE_ERROR_UNEXPECTED;
     sgx_status_t sgx_ret = SGX_ERROR_UNEXPECTED;
     sgx_report_data_t report_data = { 0 };
@@ -122,13 +145,15 @@ static quote3_error_t tee_verify_appraisal_result(
 
     for(int i = 0; i < tmp_input.input.appraisal.policy_count; i++)
     {
-        dcap_ret = deep_copy((char *)input->input.appraisal.p_policies[i], (char **)&tmp_input.input.appraisal.p_policies[i]);
+        char *tmp_policy = NULL;
+        dcap_ret = deep_copy((char *)input->input.appraisal.p_policies[i], TVL_MAX_POLICY_LEN, &tmp_policy);
         TEE_ERROR_RETURN(dcap_ret, &tmp_input);
+        tmp_input.input.appraisal.p_policies[i] = (uint8_t *)tmp_policy;
     }
 
-    dcap_ret = deep_copy(input->input.appraisal.p_appraisal_jwt, &tmp_input.input.appraisal.p_appraisal_jwt);
+    dcap_ret = deep_copy(input->input.appraisal.p_appraisal_jwt, TVL_MAX_JWT_LEN, &tmp_input.input.appraisal.p_appraisal_jwt);
     TEE_ERROR_RETURN(dcap_ret, &tmp_input);
-    dcap_ret = deep_copy(input->input.appraisal.p_qvl_jwt, &tmp_input.input.appraisal.p_qvl_jwt);
+    dcap_ret = deep_copy(input->input.appraisal.p_qvl_jwt, TVL_MAX_JWT_LEN, &tmp_input.input.appraisal.p_qvl_jwt);
     TEE_ERROR_RETURN(dcap_ret, &tmp_input);
 
     do {
@@ -193,23 +218,37 @@ static quote3_error_t tee_verify_auth_policy_result(
 {   
     qae_verification_input_t tmp_input;
     memset(&tmp_input, 0, sizeof(qae_verification_input_t));
+    tmp_input.mode = AUTH_POLICY;
     quote3_error_t dcap_ret = TEE_ERROR_UNEXPECTED;
     sgx_status_t sgx_ret = SGX_ERROR_UNEXPECTED;
     sgx_report_data_t report_data = { 0 };
     sgx_sha_state_handle_t sha_handle = NULL;
 
     if(input->input.auth_policy.p_appraisal_jwt == NULL || input->input.auth_policy.p_policy_bundle == NULL ||
-        (input->input.auth_policy.p_policy_bundle->platform_policy.pt == CUSTOMIZED && input->input.auth_policy.p_policy_bundle->platform_policy.p_policy == NULL) ||
-        (input->input.auth_policy.p_policy_bundle->platform_policy.pt == DEFAULT_STRICT && input->input.auth_policy.p_policy_bundle->platform_policy.p_policy != NULL) ||
-        (input->input.auth_policy.p_policy_bundle->tdqe_policy.pt == CUSTOMIZED && input->input.auth_policy.p_policy_bundle->tdqe_policy.p_policy == NULL) ||
-        (input->input.auth_policy.p_policy_bundle->tdqe_policy.pt == DEFAULT_STRICT && input->input.auth_policy.p_policy_bundle->tdqe_policy.p_policy != NULL) ||
         input->input.auth_policy.p_td_identity != NULL || input->input.auth_policy.p_td_tcb_mapping_table != NULL ||
         input->input.auth_policy.p_result == NULL)
     {
         return TEE_ERROR_INVALID_PARAMETER;
     }
+    /* p_policy_bundle is a host pointer — validate the full struct lies outside EPC
+     * before dereferencing any of its members. */
+    if (!sgx_is_outside_enclave(input->input.auth_policy.p_policy_bundle, sizeof(tee_policy_bundle_t)))
+    {
+        return TEE_ERROR_INVALID_PARAMETER;
+    }
+    if ((input->input.auth_policy.p_policy_bundle->platform_policy.pt == CUSTOMIZED && input->input.auth_policy.p_policy_bundle->platform_policy.p_policy == NULL) ||
+        (input->input.auth_policy.p_policy_bundle->platform_policy.pt == DEFAULT_STRICT && input->input.auth_policy.p_policy_bundle->platform_policy.p_policy != NULL) ||
+        (input->input.auth_policy.p_policy_bundle->tdqe_policy.pt == CUSTOMIZED && input->input.auth_policy.p_policy_bundle->tdqe_policy.p_policy == NULL) ||
+        (input->input.auth_policy.p_policy_bundle->tdqe_policy.pt == DEFAULT_STRICT && input->input.auth_policy.p_policy_bundle->tdqe_policy.p_policy != NULL))
+    {
+        return TEE_ERROR_INVALID_PARAMETER;
+    }
     if(input->input.auth_policy.p_quote != NULL){
         if(input->input.auth_policy.quote_size != 0){
+            if (!sgx_is_outside_enclave(input->input.auth_policy.p_quote, input->input.auth_policy.quote_size))
+            {
+                return TEE_ERROR_INVALID_PARAMETER;
+            }
             tmp_input.input.auth_policy.quote_size = input->input.auth_policy.quote_size;
             tmp_input.input.auth_policy.p_quote = (uint8_t *)malloc(tmp_input.input.auth_policy.quote_size);
             if(tmp_input.input.auth_policy.p_quote == NULL){
@@ -221,25 +260,33 @@ static quote3_error_t tee_verify_auth_policy_result(
             return TEE_ERROR_INVALID_PARAMETER;
         }
     }
-    dcap_ret = deep_copy(input->input.auth_policy.p_appraisal_jwt, &tmp_input.input.auth_policy.p_appraisal_jwt);
+    dcap_ret = deep_copy(input->input.auth_policy.p_appraisal_jwt, TVL_MAX_JWT_LEN, &tmp_input.input.auth_policy.p_appraisal_jwt);
     TEE_ERROR_RETURN(dcap_ret, &tmp_input);
     tmp_input.input.auth_policy.p_policy_bundle = (tee_policy_bundle_t *)malloc(sizeof(tee_policy_bundle_t));
-    if(input->input.auth_policy.p_policy_bundle == NULL){
+    if(tmp_input.input.auth_policy.p_policy_bundle == NULL){
         TEE_ERROR_RETURN(TEE_ERROR_OUT_OF_MEMORY, &tmp_input);
     }
-    memset(tmp_input.input.auth_policy.p_policy_bundle, 0, sizeof(tmp_input.input.auth_policy.p_policy_bundle));
+    memset(tmp_input.input.auth_policy.p_policy_bundle, 0, sizeof(*(tmp_input.input.auth_policy.p_policy_bundle)));
     // Copy policies to enclave before operation
     if (input->input.auth_policy.p_policy_bundle->p_tenant_identity_policy)
     {
         uint8_t *tmp_p = NULL;
-        dcap_ret = deep_copy((char *)input->input.auth_policy.p_policy_bundle->p_tenant_identity_policy, (char **)&tmp_p);
+        {
+            char *tmp_str = NULL;
+            dcap_ret = deep_copy((char *)input->input.auth_policy.p_policy_bundle->p_tenant_identity_policy, TVL_MAX_POLICY_LEN, &tmp_str);
+            tmp_p = (uint8_t *)tmp_str;
+        }
         TEE_ERROR_RETURN(dcap_ret, &tmp_input);
         tmp_input.input.auth_policy.p_policy_bundle->p_tenant_identity_policy = tmp_p;
     }
     if (input->input.auth_policy.p_policy_bundle->platform_policy.p_policy)
     {
         uint8_t *tmp_p = NULL;
-        dcap_ret = deep_copy((char *)input->input.auth_policy.p_policy_bundle->platform_policy.p_policy, (char **)&tmp_p);
+        {
+            char *tmp_str = NULL;
+            dcap_ret = deep_copy((char *)input->input.auth_policy.p_policy_bundle->platform_policy.p_policy, TVL_MAX_POLICY_LEN, &tmp_str);
+            tmp_p = (uint8_t *)tmp_str;
+        }
         TEE_ERROR_RETURN(dcap_ret, &tmp_input);
         tmp_input.input.auth_policy.p_policy_bundle->platform_policy.p_policy = tmp_p;
     }
@@ -247,7 +294,11 @@ static quote3_error_t tee_verify_auth_policy_result(
     if (input->input.auth_policy.p_policy_bundle->tdqe_policy.p_policy)
     {
         uint8_t *tmp_p = NULL;
-        dcap_ret = deep_copy((char *)input->input.auth_policy.p_policy_bundle->tdqe_policy.p_policy, (char **)&tmp_p);
+        {
+            char *tmp_str = NULL;
+            dcap_ret = deep_copy((char *)input->input.auth_policy.p_policy_bundle->tdqe_policy.p_policy, TVL_MAX_POLICY_LEN, &tmp_str);
+            tmp_p = (uint8_t *)tmp_str;
+        }
         TEE_ERROR_RETURN(dcap_ret, &tmp_input);
         tmp_input.input.auth_policy.p_policy_bundle->tdqe_policy.p_policy = tmp_p;
     }
@@ -255,6 +306,10 @@ static quote3_error_t tee_verify_auth_policy_result(
     tmp_input.input.auth_policy.p_result = (tee_policy_auth_result_t *)malloc(sizeof(tee_policy_auth_result_t));
     if(tmp_input.input.auth_policy.p_result == NULL){
         TEE_ERROR_RETURN(TEE_ERROR_OUT_OF_MEMORY, &tmp_input);
+    }
+    if (!sgx_is_outside_enclave(input->input.auth_policy.p_result, sizeof(tee_policy_auth_result_t)))
+    {
+        TEE_ERROR_RETURN(TEE_ERROR_INVALID_PARAMETER, &tmp_input);
     }
     memcpy(tmp_input.input.auth_policy.p_result, input->input.auth_policy.p_result, sizeof(tee_policy_auth_result_t));
 
@@ -336,6 +391,7 @@ static quote3_error_t tee_verify_auth_audit_result(
 {   
     qae_verification_input_t tmp_input;
     memset(&tmp_input, 0, sizeof(qae_verification_input_t));
+    tmp_input.mode = AUTH_OWNER;
     quote3_error_t dcap_ret = TEE_ERROR_UNEXPECTED;
     sgx_status_t sgx_ret = SGX_ERROR_UNEXPECTED;
     sgx_report_data_t report_data = { 0 };
@@ -349,6 +405,10 @@ static quote3_error_t tee_verify_auth_audit_result(
     }
     if(input->input.auth_owner.p_quote != NULL){
         if(input->input.auth_owner.quote_size != 0){
+            if (!sgx_is_outside_enclave(input->input.auth_owner.p_quote, input->input.auth_owner.quote_size))
+            {
+                return TEE_ERROR_INVALID_PARAMETER;
+            }
             tmp_input.input.auth_owner.quote_size = input->input.auth_owner.quote_size;
             tmp_input.input.auth_owner.p_quote = (uint8_t *)malloc(tmp_input.input.auth_owner.quote_size);
             if(tmp_input.input.auth_owner.p_quote == NULL){
@@ -359,6 +419,12 @@ static quote3_error_t tee_verify_auth_audit_result(
         else {
             return TEE_ERROR_INVALID_PARAMETER;
         }
+    }
+    /* Validate the key-list array lies entirely outside EPC before reading any element pointer. */
+    if (!sgx_is_outside_enclave(input->input.auth_owner.p_policy_key_list,
+                                input->input.auth_owner.key_list_count * sizeof(uint8_t *)))
+    {
+        return TEE_ERROR_INVALID_PARAMETER;
     }
     for (uint8_t i = 0; i < input->input.auth_owner.key_list_count; i++)
     {
@@ -377,15 +443,21 @@ static quote3_error_t tee_verify_auth_audit_result(
 
         for(int i = 0; i < tmp_input.input.auth_owner.key_list_count; i++)
         {
-            dcap_ret = deep_copy((char *)input->input.auth_owner.p_policy_key_list[i], (char **)&tmp_input.input.auth_owner.p_policy_key_list[i]);
+            char *tmp_key = NULL;
+            dcap_ret = deep_copy((char *)input->input.auth_owner.p_policy_key_list[i], TVL_MAX_POLICY_LEN, &tmp_key);
             TEE_ERROR_RETURN(dcap_ret, &tmp_input);
+            tmp_input.input.auth_owner.p_policy_key_list[i] = (uint8_t *)tmp_key;
         }
 
-        dcap_ret = deep_copy((char *)input->input.auth_owner.p_appraisal_jwt, &tmp_input.input.auth_owner.p_appraisal_jwt);
+        dcap_ret = deep_copy((char *)input->input.auth_owner.p_appraisal_jwt, TVL_MAX_JWT_LEN, &tmp_input.input.auth_owner.p_appraisal_jwt);
         TEE_ERROR_RETURN(dcap_ret, &tmp_input);
         tmp_input.input.auth_owner.p_result = (tee_policy_auth_result_t *)malloc(sizeof(tee_policy_auth_result_t));
         if(tmp_input.input.auth_owner.p_result == NULL){
             TEE_ERROR_RETURN(TEE_ERROR_OUT_OF_MEMORY, &tmp_input);
+        }
+        if (!sgx_is_outside_enclave(input->input.auth_owner.p_result, sizeof(tee_policy_auth_result_t)))
+        {
+            TEE_ERROR_RETURN(TEE_ERROR_INVALID_PARAMETER, &tmp_input);
         }
         memcpy(tmp_input.input.auth_owner.p_result, input->input.auth_owner.p_result, sizeof(tee_policy_auth_result_t));
 
@@ -449,7 +521,7 @@ quote3_error_t tee_verify_qae_report_and_identity(
     sgx_status_t sgx_ret = SGX_ERROR_UNEXPECTED;
     quote3_error_t ret = TEE_ERROR_UNEXPECTED;
 
-    if(input == NULL || !sgx_is_within_enclave(input, sizeof(input)))
+    if(input == NULL || !sgx_is_within_enclave(input, sizeof(*input)))
     {
         return TEE_ERROR_INVALID_PARAMETER;
     }
