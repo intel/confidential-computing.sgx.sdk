@@ -197,6 +197,10 @@ protected_fs_file::protected_fs_file(const char* filename, const char* mode, con
 					     (result32 != 0) ? result32 : EACCES;
 			break;
 		}
+		if (!sgx_is_outside_enclave(file_addr, real_file_size > 0 ? real_file_size : NODE_SIZE)) {
+			last_error = EFAULT;
+			break;
+		}
 
 		if (real_file_size < 0)
 		{
