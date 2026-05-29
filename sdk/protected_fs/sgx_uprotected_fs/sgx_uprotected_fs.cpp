@@ -34,6 +34,7 @@
 #include <malloc.h>
 #include <assert.h>
 #include <errno.h>
+#include <limits.h>
 
 #include <sys/file.h>
 #include <sys/mman.h>
@@ -340,6 +341,7 @@ int32_t u_sgxprotectedfs_do_file_recovery(const char* filename, const char* reco
 	size_t count = 0;
 	uint8_t* recovery_node = NULL;
 	uint32_t i = 0;
+	uint64_t source_file_size = 0;
 
 	do 
 	{
@@ -407,8 +409,29 @@ int32_t u_sgxprotectedfs_do_file_recovery(const char* filename, const char* reco
 			break;
 		}
 
+		if ((result = fseeko(source_file, 0, SEEK_END)) != 0)
+		{
+			DEBUG_PRINT("fseeko returned %d\n", result);
+			if (errno != 0)
+				ret = errno;
+			break;
+		}
+
+		off_t source_file_offset = ftello(source_file);
+		if (source_file_offset < 0)
+		{
+			DEBUG_PRINT("ftello returned negative value [%lld]\n", (long long)source_file_offset);
+			ret = ENOTSUP;
+			break;
+		}
+
+		source_file_size = (uint64_t)source_file_offset;
+
 		for (i = 0 ; i < nodes_count ; i++)
 		{
+			uint64_t node_offset = 0;
+			uint64_t seek_offset = 0;
+
 			if ((count = fread(recovery_node, recovery_node_size, 1, recovery_file)) != 1)
 			{
 				DEBUG_PRINT("fread returned %ld [!= 1]\n", count);
@@ -420,8 +443,32 @@ int32_t u_sgxprotectedfs_do_file_recovery(const char* filename, const char* reco
 				break;
 			}
 
+			memcpy(&node_offset, recovery_node, sizeof(node_offset));
+
+			if (node_offset > (UINT64_MAX / NODE_SIZE))
+			{
+				DEBUG_PRINT("invalid recovery node offset [%lu]\n", node_offset);
+				ret = ENOTSUP;
+				break;
+			}
+
+			seek_offset = node_offset * NODE_SIZE;
+			if (((off_t)seek_offset < 0) || ((uint64_t)(off_t)seek_offset != seek_offset))
+			{
+				DEBUG_PRINT("invalid recovery node offset [%lu]\n", node_offset);
+				ret = ENOTSUP;
+				break;
+			}
+
+			if (seek_offset > source_file_size || (source_file_size - seek_offset) < NODE_SIZE)
+			{
+				DEBUG_PRINT("recovery node offset out of file range [%lu], file size [%lu]\n", seek_offset, source_file_size);
+				ret = ENOTSUP;
+				break;
+			}
+
 			// seek the regular file to the required offset
-			if ((result = fseeko(source_file, (*((uint64_t*)recovery_node)) * NODE_SIZE, SEEK_SET)) != 0)
+			if ((result = fseeko(source_file, (off_t)seek_offset, SEEK_SET)) != 0)
 			{
 				DEBUG_PRINT("fseeko returned %d\n", result);
 				if (errno != 0)
