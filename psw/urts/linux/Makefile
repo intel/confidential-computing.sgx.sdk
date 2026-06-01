@@ -18,7 +18,7 @@ CFLAGS += -fPIC -Werror -g
 CFLAGS += $(ADDED_INC)
 
 VTUNE_DIR = $(LINUX_EXTERNAL_DIR)/vtune/linux
-PREBUILT_OPENSSL_DIR := $(LINUX_EXTERNAL_DIR)/dcap_source/prebuilt/openssl
+PREBUILT_OPENSSL_DIR := $(ROOT_DIR)/prebuilt/dcap/openssl
 CRYPTO_LIB := -L$(PREBUILT_OPENSSL_DIR)/lib/linux64 -lcrypto
 
 INC += -I$(SGX_HEADER_DIR)                \

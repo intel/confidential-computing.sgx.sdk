@@ -20,7 +20,7 @@ endif
 
 SGX_QV_PATH ?= ../../external/dcap_source/QuoteVerification
 SGX_QVE_PATH ?= ../../external/dcap_source/ae/QvE
-PREBUILT_OPENSSL_PATH ?= $(SGX_QV_PATH)/../prebuilt/openssl
+PREBUILT_OPENSSL_PATH ?= $(ROOT_DIR)/prebuilt/dcap/openssl
 CBOR_PATH ?= $(LINUX_EXTERNAL_DIR)/cbor
 CBOR_RELATIVE_PATH ?= ../../external/cbor
 

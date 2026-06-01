@@ -6,7 +6,7 @@
 
 include buildenv.mk
 
-.PHONY: all tips preparation psw sdk_no_mitigation sdk clean rebuild tdx servtd_attest servtd_attest_preparation ipp sdk_install_pkg_no_mitigation sdk_install_pkg  sdk_install_pkg_from_source psw_install_pkg
+.PHONY: all tips preparation preparation_dcap dcap_prebuilts psw sdk_no_mitigation sdk clean rebuild tdx servtd_attest servtd_attest_preparation ipp sdk_install_pkg_no_mitigation sdk_install_pkg sdk_install_pkg_from_source psw_install_pkg
 
 all: tips
 
@@ -24,15 +24,10 @@ tips:
 
 USE_PREBUILT_IPP ?= yes
 
-preparation:
+preparation: dcap_prebuilts preparation_dcap
 # As SDK build needs to clone and patch openmp, we cannot support the mode that download the source from github as zip.
 # Only enable the download from git
 	git submodule update --init --recursive
-	cd external/dcap_source/external/jwt-cpp && git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch >/dev/null 2>&1 || \
-	git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch -R --check
-	cd external/dcap_source/external/wasm-micro-runtime && git apply ../0001-wasm-micro-runtime.patch >/dev/null 2>&1 || \
-	git apply ../0001-wasm-micro-runtime.patch -R --check
-	./external/dcap_source/QuoteVerification/prepare_sgxssl.sh nobuild
 	cd external/openmp/openmp_code && git apply ../0001-Enable-OpenMP-in-SGX.patch >/dev/null 2>&1 ||  git apply ../0001-Enable-OpenMP-in-SGX.patch --check -R
 
 	# TODO refactor to remove duplication with the ./external/protobuf/Makefile.
@@ -62,8 +57,19 @@ else
 	./download_prebuilt.sh no_prebuilt_ipp
 	@echo "Preparation finished. NOTE: IPP Crypto libraries need to be built from source. Run 'make ipp' to build them or use one of the '*_from_source' targets."
 endif
-	./external/dcap_source/QuoteGeneration/download_prebuilt.sh
 	cd external/libcxxrt/libcxxrt_code && git apply ../sgx_libcxxrt.patch >/dev/null 2>&1 || git apply ../sgx_libcxxrt.patch --check -R
+
+preparation_dcap:
+	git submodule update --init --recursive
+	cd external/dcap_source/external/jwt-cpp && git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch >/dev/null 2>&1 || \
+	git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch -R --check
+	cd external/dcap_source/external/wasm-micro-runtime && git apply ../0001-wasm-micro-runtime.patch >/dev/null 2>&1 || \
+	git apply ../0001-wasm-micro-runtime.patch -R --check
+	./external/dcap_source/QuoteVerification/prepare_sgxssl.sh nobuild
+	./external/dcap_source/QuoteGeneration/download_prebuilt.sh
+
+dcap_prebuilts:
+	./download_prebuilt_dcap.sh
 
 psw:
 	$(MAKE) -C psw/ USE_OPT_LIBS=$(USE_OPT_LIBS)
