@@ -181,7 +181,14 @@ bool parse_dyn(const ElfW(Ehdr) *elf_hdr, ElfW(Dyn)* dyn_info)
                 }
                 else if (dyn_entry->d_tag > DT_ADDRRNGLO && dyn_entry->d_tag <= DT_ADDRRNGHI)
                 {
-                    memcpy_s(&dyn_info[DT_ADDRTAGIDX(dyn_entry->d_tag) + DT_NUM], sizeof(ElfW(Dyn)), dyn_entry, sizeof(ElfW(Dyn)));
+                    const size_t addr_tag_idx = (size_t)DT_ADDRTAGIDX(dyn_entry->d_tag);
+                    if (addr_tag_idx >= DT_ADDRNUM)
+                    {
+                        SE_TRACE(SE_TRACE_WARNING, "Malformed dynamic tag index: tag = %x, idx = %u\n",
+                                 dyn_entry->d_tag, (unsigned)addr_tag_idx);
+                        return false;
+                    }
+                    memcpy_s(&dyn_info[addr_tag_idx + DT_NUM], sizeof(ElfW(Dyn)), dyn_entry, sizeof(ElfW(Dyn)));
                 }
 
                 dyn_entry++;
