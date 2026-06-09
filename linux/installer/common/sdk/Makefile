@@ -47,6 +47,10 @@ SOURCE_INSTALL_SGX_GDB=$(SOURCE_INSTALL_PATH)/bin/sgx-gdb
 .PHONY: install
 install: install_source install_script install_gdb install_library install_pkgconfig update_pkgconfig
 
+# `make -j` is used in RPM builds. Ensure package content is copied first.
+install_script install_gdb install_library install_pkgconfig: install_source
+update_pkgconfig: install_pkgconfig
+
 .PHONY: install_source
 install_source: #for all format
 	@install -d $(SOURCE_INSTALL_PATH)
