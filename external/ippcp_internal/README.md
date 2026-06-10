@@ -2,7 +2,7 @@
 
 The ippcp library is built based on the Intel(R) Cryptography Primitives Library (CPL) open source project:
    * https://github.com/intel/cryptography-primitives
-   * tag: [cryptography-primitives_2_1_0](https://github.com/intel/cryptography-primitives/tree/cryptography-primitives_2_1_0)
+   * tag: [cryptography-primitives_2_2_0](https://github.com/intel/cryptography-primitives/tree/cryptography-primitives_2_2_0)
 
 # Build Instructions
 
@@ -11,7 +11,8 @@ To build your own cryptographic library, complete the following steps:
    Obtain `as.ld.objdump.{ver}.tar.gz` from [01.org](https://download.01.org/intel-sgx/latest/linux-latest/).
    Extract the package and copy the tools into `/usr/local/bin`.
 2. Prepare the build environment.
-   Read the Cryptography Primitives Library [BUILD.md](https://github.com/intel/cryptography-primitives/blob/cryptography-primitives_1_4_0/BUILD.md) for environment requirements and setup instructions.
+   Read the Cryptography Primitives Library [BUILD.md](https://github.com/intel/cryptography-primitives/blob/cryptography-primitives_2_2_0/BUILD.md) for environment requirements and setup instructions.
+   Among other requirements, the Cryptography Primitives Library depends on NASM version 2.16.02, which is not available in the package repositories of some Linux distributions.
 3. Prepare the ipp-crypto source code.
    Run the following command in the root directory:
    ```bash
@@ -54,7 +55,7 @@ $ awk -F\, '/IPPAPI\(/ {print $2}' ../../../inc/ippcp.h | awk '{print $1}' > fun
 ```
 3. Generate the dispatcher code using the Custom Library Tool
 ```bash
-$ python3 main.py -c -g -p ./ -ff functions.txt -arch intel64 -d sse42 avx2 avx512ifma -root ../../install --prefix sgx_disp_
+$ python3 clt.py -g -p ./ -ff functions.txt -arch intel64 -d sse42 avx2 avx512ifma -root ../../install --prefix sgx_disp_
 ```
 4. Verify that the dispatcher code was generated successfully
 ```bash

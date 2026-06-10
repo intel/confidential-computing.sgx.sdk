@@ -63,7 +63,7 @@ ifeq ($(shell git rev-parse --is-inside-work-tree), true)
 	git submodule update -f --init --recursive --remote -- $(IPP_SOURCE)
 else
 	$(RM) -rf $(IPP_SOURCE)
-	git clone -b cryptography-primitives_2_1_0 https://github.com/intel/cryptography-primitives --depth 1 $(IPP_SOURCE)
+	git clone -b cryptography-primitives_2_2_0 https://github.com/intel/cryptography-primitives --depth 1 $(IPP_SOURCE)
 endif
 	cd $(IPP_SOURCE) && git apply ../0001-Cryptography-Primitives-for-SGX.patch
 	mkdir -p $(IPP_SOURCE)/build $(IPP_SOURCE)/$(INSTALL_DIR)
