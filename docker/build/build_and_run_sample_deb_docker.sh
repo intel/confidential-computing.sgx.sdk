@@ -1,38 +1,33 @@
 #!/bin/sh
 #
-# Copyright (C) 2022 Intel Corporation. All rights reserved.
+# Copyright(c) 2022-2026 Intel Corporation
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in
-#     the documentation and/or other materials provided with the
-#     distribution.
-#   * Neither the name of Intel Corporation nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# SPDX-License-Identifier: BSD-3-Clause
 #
 
 set -e
 docker build --target sample_deb --build-arg https_proxy=$https_proxy \
              --build-arg http_proxy=$http_proxy -t sgx_sample_deb -f ./Dockerfile ../../
 
-# Another container should expose AESM and its socket in aesmd-socket volume.
-# Replace /dev/sgx_enclave with /dev/isgx if you use the Legacy Launch Control driver
-docker run --env http_proxy --env https_proxy --device=/dev/sgx_enclave -v aesmd-socket:/var/run/aesmd -it sgx_sample_deb
+# In-kernel driver (5.11+) uses /dev/sgx_enclave; old out-of-tree driver: /dev/isgx.
+
+# The SGX SDK sample built here (SGX SDK SampleEnclave) does NOT use the AESM, so it is OFF by
+# default; it is required with the legacy Launch Enclave driver (set USE_AESM=1 there), and
+# some DCAP-based quote-generation samples or RA-RLS (which talk to the AESM for PCE/QE3). 
+# USE_AESM=1 mounts an external AESM socket bound at /var/run/aesmd (its well-known default). 
+# AESM_SOCKET_DIR picks the source: 
+#  - a named volume (e.g. 'aesmd-socket'[default] from build_and_run_aesm_deb_docker.sh, which is a tmpfs
+#    volume shared between the sample and AESM containers), or
+#  - a host path (e.g. /var/run/aesmd)
+USE_AESM="${USE_AESM:-0}"   # flip to 1 to attach an external AESM
+[ "$USE_AESM" = "1" ] && AESM_ARGS="-v ${AESM_SOCKET_DIR:-aesmd-socket}:/var/run/aesmd" || AESM_ARGS=""
+
+# Add host "sgx" group when present (systemd >= 248 sets /dev/sgx_enclave to
+# root:sgx 0660; older systemd / tarball installs use 0666 and have no group).
+sgx_gid=$(getent group sgx 2>/dev/null | cut -d: -f3)
+GROUP_ARGS=${sgx_gid:+--group-add $sgx_gid}
+
+docker run --rm --name sgx_sample --env http_proxy --env https_proxy \
+  --device=/dev/sgx_enclave \
+  $GROUP_ARGS \
+  $AESM_ARGS -it sgx_sample_deb
