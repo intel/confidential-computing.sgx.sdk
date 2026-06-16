@@ -63,8 +63,6 @@ preparation_dcap:
 	git submodule update --init --recursive
 	cd external/dcap_source/external/jwt-cpp && git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch >/dev/null 2>&1 || \
 	git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch -R --check
-	cd external/dcap_source/external/wasm-micro-runtime && git apply ../0001-wasm-micro-runtime.patch >/dev/null 2>&1 || \
-	git apply ../0001-wasm-micro-runtime.patch -R --check
 	./external/dcap_source/QuoteVerification/prepare_sgxssl.sh nobuild
 	./external/dcap_source/QuoteGeneration/download_prebuilt.sh
 
