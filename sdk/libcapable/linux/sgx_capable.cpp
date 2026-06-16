@@ -39,7 +39,6 @@
 
 #include "se_cdefs.h"
 #include "se_types.h"
-#include "sgx_safe_file_ops.h"
 SGX_ACCESS_VERSION(capable, 1);
 
 /* __cpuid(unsinged int info[4], unsigned int leaf, unsigned int subleaf); */
@@ -323,7 +322,7 @@ sgx_status_t sgx_cap_enable_device (sgx_device_status_t *sgx_device_status)
 
 	/* First, read the EPCBIOS EFI variable to get the max EPC size */
 
-	fefivar= sgx_safe_fopen(EFIVAR_EPCBIOS, "r");
+	fefivar= fopen(EFIVAR_EPCBIOS, "r");
 	if ( fefivar == NULL ) {
 		if ( errno == EACCES ) return SGX_ERROR_NO_PRIVILEGE;
 
@@ -352,7 +351,7 @@ sgx_status_t sgx_cap_enable_device (sgx_device_status_t *sgx_device_status)
 	epcsw.attrs= epcbios.attrs;
 	epcsw.maxepcsz= epcbios.maxepcsz;
 
-	fefivar= sgx_safe_fopen(EFIVAR_EPCSW, "w");
+	fefivar= fopen(EFIVAR_EPCSW, "w");
 	if ( fefivar == NULL ) {
 		if ( errno == EACCES ) return SGX_ERROR_NO_PRIVILEGE;
 

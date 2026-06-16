@@ -41,7 +41,6 @@
 #include <ctype.h>
 #include <assert.h>
 #include <errno.h>
-#include "sgx_safe_file_ops.h"
 
 #define MAX_FILE_PATH 260
 
@@ -68,7 +67,7 @@ extern "C" bool write_cpusvn_file(const char *file_path, const sgx_cpu_svn_t *cp
         return false;
     }
     FILE *fp = NULL;
-    if(NULL == (fp = sgx_safe_fopen(file_path, "wb")))
+    if(NULL == (fp = fopen(file_path, "wb")))
     {
         return false;
     }
@@ -92,7 +91,7 @@ extern "C" bool read_cpusvn_file(const char *config_path, sgx_cpu_svn_t *cpusvn_
     sgx_cpu_svn_t temp_cpusvn = {{0}};
     size_t result = 0;
 
-    if(NULL == (fp = sgx_safe_fopen(config_path, "rb")))
+    if(NULL == (fp = fopen(config_path, "rb")))
     {
         SE_TRACE(SE_TRACE_DEBUG, "Couldn't find/open the configuration file %s.\n", config_path);
         memcpy_s(cpusvn_ptr, sizeof(sgx_cpu_svn_t), &DEFAULT_CPUSVN, sizeof(DEFAULT_CPUSVN));
