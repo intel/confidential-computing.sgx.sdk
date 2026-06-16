@@ -20,20 +20,21 @@ endif
 
 SGX_QV_PATH ?= ../../external/dcap_source/QuoteVerification
 SGX_QVE_PATH ?= ../../external/dcap_source/ae/QvE
-PREBUILT_OPENSSL_PATH ?= $(SGX_QV_PATH)/../prebuilt/openssl
+PREBUILT_OPENSSL_PATH ?= $(ROOT_DIR)/prebuilt/dcap/openssl
 CBOR_PATH ?= $(LINUX_EXTERNAL_DIR)/cbor
 CBOR_RELATIVE_PATH ?= ../../external/cbor
 
-INCLUDE += -I$(COMMON_DIR)/inc/tlibc    \
-           -I$(COMMON_DIR)/inc/internal \
-           -I$(COMMON_DIR)/inc          \
-           -I$(LINUX_SDK_DIR)/tlibcxx/include \
-           -I$(SGX_QVE_PATH)/Include \
-           -I$(SGX_QV_PATH)/appraisal/qal \
+INCLUDE += -I$(COMMON_DIR)/inc/tlibc                                    \
+           -I$(COMMON_DIR)/inc/internal                                 \
+           -I$(LINUX_SDK_DIR)/include/ra_tls/forward_decls              \
+           -I$(COMMON_DIR)/inc                                          \
+           -I$(LINUX_SDK_DIR)/tlibcxx/include                           \
+           -I$(SGX_QVE_PATH)/Include                                    \
+           -I$(SGX_QV_PATH)/appraisal/qal                               \
            -I$(SGX_QV_PATH)/../QuoteGeneration/quote_wrapper/common/inc \
            -I$(SGX_QV_PATH)/../QuoteGeneration/quote_wrapper/tdx_attest \
-           -I$(LINUX_SDK_DIR)/tvl \
-           -include./tsgxsslio.h \
+           -I$(LINUX_SDK_DIR)/tvl                                       \
+           -include./tsgxsslio.h                                        \
            -I$(PREBUILT_OPENSSL_PATH)/inc
 
 INCLUDE_TDX := $(filter-out -I$(PREBUILT_OPENSSL_PATH)/inc,$(INCLUDE))

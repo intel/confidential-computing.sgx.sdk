@@ -5,7 +5,8 @@
 #
 
 include buildenv.mk
-.PHONY: all tips preparation psw sdk_no_mitigation sdk clean rebuild tdx servtd_attest servtd_attest_preparation ipp sdk_install_pkg_no_mitigation sdk_install_pkg  sdk_install_pkg_from_source psw_install_pkg
+
+.PHONY: all tips preparation preparation_dcap dcap_prebuilts psw sdk_no_mitigation sdk clean rebuild tdx servtd_attest servtd_attest_preparation ipp sdk_install_pkg_no_mitigation sdk_install_pkg sdk_install_pkg_from_source psw_install_pkg
 
 all: tips
 
@@ -16,21 +17,17 @@ tips:
 	@echo "        1) ensure that you have installed required tools described in README.md in same directory"
 	@echo "        2) enter the command: \"make sdk\""
 	@echo "     2. If you want to build Intel(R) SGX PSW with default configuration, please take the following steps:"
-	@echo "        1) ensure that you have installed additional required tools decribed in README.md in same directory"
+	@echo "        1) ensure that you have installed additional required tools described in README.md in same directory"
 	@echo "        2) ensure that you have installed latest Intel(R) SGX SDK Installer which could be downloaded from: https://software.intel.com/en-us/sgx-sdk/download" and followed Installation Guide in the same page to finish installation.
-	@echo "        3) enter the commmand: \"make psw\""
+	@echo "        3) enter the command: \"make psw\""
 	@echo "     3. If you want to build other targets, please also follow README.md in same directory"
 
+USE_PREBUILT_IPP ?= yes
 
-preparation:
+preparation: dcap_prebuilts preparation_dcap
 # As SDK build needs to clone and patch openmp, we cannot support the mode that download the source from github as zip.
 # Only enable the download from git
 	git submodule update --init --recursive
-	cd external/dcap_source/external/jwt-cpp && git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch >/dev/null 2>&1 || \
-	git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch -R --check
-	cd external/dcap_source/external/wasm-micro-runtime && git apply ../0001-wasm-micro-runtime.patch >/dev/null 2>&1 || \
-	git apply ../0001-wasm-micro-runtime.patch -R --check
-	./external/dcap_source/QuoteVerification/prepare_sgxssl.sh nobuild
 	cd external/openmp/openmp_code && git apply ../0001-Enable-OpenMP-in-SGX.patch >/dev/null 2>&1 ||  git apply ../0001-Enable-OpenMP-in-SGX.patch --check -R
 
 	# TODO refactor to remove duplication with the ./external/protobuf/Makefile.
@@ -50,11 +47,27 @@ preparation:
 	cd external/cbor && cp -r libcbor sgx_libcbor
 	cd external/cbor/libcbor && git apply ../raw_cbor.patch >/dev/null 2>&1 || git apply ../raw_cbor.patch --check -R
 	cd external/cbor/sgx_libcbor && git apply ../sgx_cbor.patch >/dev/null 2>&1 || git apply ../sgx_cbor.patch --check -R
-	cd external/ippcp_internal/ipp-crypto && git apply ../0001-IPP-crypto-for-SGX.patch > /dev/null 2>&1 || git apply ../0001-IPP-crypto-for-SGX.patch --check -R
+	cd external/ippcp_internal/ipp-crypto && git apply ../0001-Cryptography-Primitives-for-SGX.patch > /dev/null 2>&1 || git apply ../0001-Cryptography-Primitives-for-SGX.patch --check -R
 	cd external/ippcp_internal/ipp-crypto && mkdir -p build
+ifeq ($(USE_PREBUILT_IPP), yes)
 	./download_prebuilt.sh
-	./external/dcap_source/QuoteGeneration/download_prebuilt.sh
+	@echo "Preparation finished. NOTE: prebuilt IPP Crypto libraries downloaded."
+	@echo "If you want to compile IPP Crypto libraries from source, run \"make preparation USE_PREBUILT_IPP=no\""
+else
+	./download_prebuilt.sh no_prebuilt_ipp
+	@echo "Preparation finished. NOTE: IPP Crypto libraries need to be built from source. Run 'make ipp' to build them or use one of the '*_from_source' targets."
+endif
 	cd external/libcxxrt/libcxxrt_code && git apply ../sgx_libcxxrt.patch >/dev/null 2>&1 || git apply ../sgx_libcxxrt.patch --check -R
+
+preparation_dcap:
+	git submodule update --init --recursive
+	cd external/dcap_source/external/jwt-cpp && git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch >/dev/null 2>&1 || \
+	git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch -R --check
+	./external/dcap_source/QuoteVerification/prepare_sgxssl.sh nobuild
+	./external/dcap_source/QuoteGeneration/download_prebuilt.sh
+
+dcap_prebuilts:
+	./download_prebuilt_dcap.sh
 
 psw:
 	$(MAKE) -C psw/ USE_OPT_LIBS=$(USE_OPT_LIBS)
@@ -91,6 +104,7 @@ servtd_attest_preparation:
 	cd external/libcxxrt/libcxxrt_code && (git apply ../sgx_libcxxrt.patch >/dev/null 2>&1 || git apply ../sgx_libcxxrt.patch --check -R)
 
 ipp:
+	@command -v nasm >/dev/null 2>&1 || (echo "nasm not found, please install nasm" && exit 1)
 	$(MAKE) -C external/ippcp_internal/ clean
 	$(MAKE) -C external/ippcp_internal/ MITIGATION-CVE-2020-0551=LOAD
 	$(MAKE) -C external/ippcp_internal/ clean
@@ -265,6 +279,11 @@ deb_pcs_client_tool:
 	$(MAKE) -C external/dcap_source/tools/PcsClientTool deb_sgx_pcs_client_pkg
 	$(CP) external/dcap_source/tools/PcsClientTool/installer/linux/deb/*pcs-client-tool/*pcs-client-tool*deb ./linux/installer/deb/
 
+.PHONY: deb_tee_poe_gen_tool
+deb_tee_poe_gen_tool:
+	$(MAKE) -C external/dcap_source PoeTools_deb
+	$(CP) external/dcap_source/tools/PoeTools/build_infrastructure/installer/linux/deb/intel-tee-poe-gen-tool/intel-tee-poe-gen-tool*.deb ./linux/installer/deb/
+
 .PHONY: deb_psw_pkg
 deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_libsgx_qe3_logic \
@@ -290,7 +309,8 @@ deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_tdx_attest \
              deb_tee_appraisal_tool \
              deb_libsgx_ae_qae \
-             deb_pcs_client_tool
+             deb_pcs_client_tool \
+             deb_tee_poe_gen_tool
 
 .PHONY: deb_local_repo
 deb_local_repo: deb_psw_pkg
@@ -435,6 +455,11 @@ rpm_pcs_client_tool:
 	$(MAKE) -C external/dcap_source/tools/PcsClientTool rpm_sgx_pcs_client_pkg
 	$(CP) external/dcap_source/tools/PcsClientTool/installer/linux/rpm/*pcs-client-tool/*pcs-client-tool*rpm ./linux/installer/rpm/
 
+.PHONY: rpm_tee_poe_gen_tool
+rpm_tee_poe_gen_tool:
+	$(MAKE) -C external/dcap_source PoeTools_rpm
+	$(CP) external/dcap_source/tools/PoeTools/build_infrastructure/installer/linux/rpm/intel-tee-poe-gen-tool/intel-tee-poe-gen-tool*.rpm ./linux/installer/rpm/
+
 .PHONY: rpm_psw_pkg
 rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_libsgx_pce_logic \
@@ -460,7 +485,8 @@ rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_tdx_attest \
              rpm_tee_appraisal_tool \
              rpm_libsgx_ae_qae \
-             rpm_pcs_client_tool
+             rpm_pcs_client_tool \
+             rpm_tee_poe_gen_tool
 
 .PHONY: rpm_local_repo
 rpm_local_repo: rpm_psw_pkg

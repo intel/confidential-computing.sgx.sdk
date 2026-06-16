@@ -33,7 +33,8 @@ include ../../buildenv.mk
 
 DIR = $(CURDIR)
 
-IPP_CONFIG = -Bbuild -DCMAKE_VERBOSE_MAKEFILE=on
+INSTALL_DIR=install
+IPP_CONFIG = -Bbuild -DCMAKE_VERBOSE_MAKEFILE=on -DCMAKE_INSTALL_PREFIX=./$(INSTALL_DIR)
 
 # Ignore the CMAKE C/C++ compiler check to avoid conflicts with mitigation options
 IPP_CONFIG += -DCMAKE_C_COMPILER_WORKS=TRUE -DCMAKE_CXX_COMPILER_WORKS=TRUE 
@@ -51,6 +52,12 @@ IPP_CONFIG += -DCMAKE_CXX_FLAGS="$(ENC_CXXFLAGS)"
 
 IPP_CONFIG += -DSGX_PROGRAM_SEARCH_PATH="$(EXT_BINUTILS_DIR)"
 
+# Enable FIPS-compliant selftest API providers required by SGX tcrypto.
+IPP_CONFIG += -DIPPCP_FIPS_MODE=on -DFIPS_CUSTOM_IPPCP_API_HEADER=$(CURDIR)/inc/sgx_ippcp.h
+
+# Turn off the build of Crypto Multi Buffer library
+IPP_CONFIG += -DNO_CRYPTO_MB:BOOL=TRUE
+
 SUB_DIR = no_mitigation
 OUT_DIR = lib/linux/$(ARCH)/$(SUB_DIR)/
 
@@ -59,16 +66,16 @@ OUT_DIR = lib/linux/$(ARCH)/$(SUB_DIR)/
 all: build_ipp
 	# copy the built out lib, header files and license to the target folder
 	$(MKDIR) $(OUT_DIR)
-	$(CP) ipp-crypto/build/.build/RELEASE/lib/libippcp.a $(OUT_DIR)
-	$(CP) ipp-crypto/include/* ./inc/
-	patch ipp-crypto/include/ippcp.h -i ./inc/ippcp21u7.patch -o ./inc/ippcp.h
+	$(CP) $(IPP_SOURCE)/$(INSTALL_DIR)/lib/intel64/libippcp.a $(OUT_DIR)
+	$(CP) $(IPP_SOURCE)/$(INSTALL_DIR)/include/* ./inc/
+	patch $(IPP_SOURCE)/$(INSTALL_DIR)/include/ippcp.h -i ./inc/ippcp21u12.patch -o ./inc/ippcp.h
 	$(MKDIR) license
 	$(CP) ipp-crypto/LICENSE ./license/
 
 build_ipp:
-	cd $(IPP_SOURCE) && cmake CMakeLists.txt $(IPP_CONFIG) && cd build && make ippcp_s
+	cd $(IPP_SOURCE) && cmake CMakeLists.txt $(IPP_CONFIG) && cd build && make ippcp_s && make install
 
 
 .PHONY: clean
 clean:
-	$(RM) -rf ipp-crypto/build
+	$(RM) -rf $(IPP_SOURCE)/build $(IPP_SOURCE)/$(INSTALL_DIR)

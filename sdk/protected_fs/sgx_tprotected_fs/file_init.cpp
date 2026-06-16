@@ -34,6 +34,7 @@
 #include "protected_fs_file.h"
 #include <tprotected_fs.h>
 #include <sgx_utils.h>
+#include <sgx_trts.h>
 
 // remove the file path if it's there, leave only the filename, null terminated
 bool protected_fs_file::cleanup_filename(const char* src, char* dest)
@@ -194,6 +195,10 @@ protected_fs_file::protected_fs_file(const char* filename, const char* mode, con
 		{
 			last_error = (status != SGX_SUCCESS) ? status :
 					     (result32 != 0) ? result32 : EACCES;
+			break;
+		}
+		if (!sgx_is_outside_enclave(file_addr, real_file_size > 0 ? real_file_size : NODE_SIZE)) {
+			last_error = EFAULT;
 			break;
 		}
 
@@ -371,8 +376,13 @@ bool protected_fs_file::file_recovery(const char* filename)
 	status = u_sgxprotectedfs_exclusive_file_map(&file_addr, filename, read_only, &new_file_size, &result32);
 	if (status != SGX_SUCCESS || file_addr == NULL)
 	{
-		last_error = (status != SGX_SUCCESS) ? status : 
+		last_error = (status != SGX_SUCCESS) ? status :
 					 (result32 != 0) ? result32 : EACCES;
+		return false;
+	}
+	if (!sgx_is_outside_enclave(file_addr, real_file_size > 0 ? real_file_size : NODE_SIZE))
+	{
+		last_error = EFAULT;
 		return false;
 	}
 

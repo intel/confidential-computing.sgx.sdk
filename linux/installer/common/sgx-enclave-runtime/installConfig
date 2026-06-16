@@ -1,0 +1,10 @@
+SGX_HEADERS_PACKAGE=libsgx-headers
+URTS_PACKAGE=libsgx-urts
+ENCLAVE_COMMON_PACKAGE=libsgx-enclave-common
+ENCLAVE_COMMON_DEV_PACKAGE=libsgx-enclave-common-devel
+
+SGX_INSTALL_PATH=/opt/intel
+
+INC_DIR=include
+LIB_DIR=lib
+ETC_DIR=etc

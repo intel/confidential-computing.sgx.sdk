@@ -10,20 +10,21 @@ include $(TOP_DIR)/buildenv.mk
 CERT_UTIL_DIR   := ../ttls
 SGX_QV_PATH ?= ../../external/dcap_source/QuoteVerification
 SGX_QVE_PATH ?= ../../external/dcap_source/ae/QvE
-PREBUILD_OPENSSL_PATH ?= $(SGX_QV_PATH)/../prebuilt/openssl
+PREBUILD_OPENSSL_PATH ?= $(ROOT_DIR)/prebuilt/dcap/openssl
 CBOR_PATH ?= $(LINUX_EXTERNAL_DIR)/cbor
 LIBCBOR_PATH := $(CBOR_PATH)/untrusted/lib
 CBOR_INCLUDE := $(CBOR_PATH)/untrusted/include
 
 INCLUDE += -I.
-INCLUDE += -I$(COMMON_DIR)              \
-           -I$(COMMON_DIR)/inc          \
-           -I$(COMMON_DIR)/inc/internal \
-           -I$(PREBUILD_OPENSSL_PATH)/inc \
-           -I$(CBOR_PATH)/untrusted/include \
-           -I$(CERT_UTIL_DIR) \
-           -I$(SGX_QVE_PATH)/Include \
-           -I$(SGX_QV_PATH)/dcap_quoteverify/inc \
+INCLUDE += -I$(COMMON_DIR)                                              \
+           -I$(COMMON_DIR)/inc                                          \
+           -I$(COMMON_DIR)/inc/internal                                 \
+           -I$(LINUX_SDK_DIR)/include/ra_tls/forward_decls              \
+           -I$(PREBUILD_OPENSSL_PATH)/inc                               \
+           -I$(CBOR_PATH)/untrusted/include                             \
+           -I$(CERT_UTIL_DIR)                                           \
+           -I$(SGX_QVE_PATH)/Include                                    \
+           -I$(SGX_QV_PATH)/dcap_quoteverify/inc                        \
            -I$(SGX_QV_PATH)/../QuoteGeneration/quote_wrapper/common/inc \
            -I$(SGX_QV_PATH)/../QuoteGeneration/quote_wrapper/ql/inc
 

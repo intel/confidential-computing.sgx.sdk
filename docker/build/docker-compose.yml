@@ -1,43 +1,36 @@
 #
-# Copyright (C) 2020 Intel Corporation. All rights reserved.
+# Copyright(c) 2020-2026 Intel Corporation
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# SPDX-License-Identifier: BSD-3-Clause
 #
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in
-#     the documentation and/or other materials provided with the
-#     distribution.
-#   * Neither the name of Intel Corporation nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
+
+# Modern in-kernel driver (kernel 5.11+): uses /dev/sgx_enclave and /dev/sgx_provision.
+# Old out-of-tree driver: replace /dev/sgx_enclave with /dev/isgx and drop /dev/sgx_provision.
+# With the legacy Launch Enclave driver the AESM is REQUIRED (it issues launch tokens), so
+# keep the aesm service up: compose runs it by default -- do NOT set USE_AESM=0 there.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# If you use the Legacy Launch Control driver, replace /dev/sgx/enclave with /dev/isgx for both
-# sample and aesm, and remove /dev/sgx/provision in "devices" list for aesm
-#
+
+# version kept for docker-compose < 1.27.0 (Debian 10, Ubuntu 20.04, RHEL 8); ignored by Compose v2.
 version: '3'
 
+# SGX_GID / SGX_PRV_GID are exported by build_compose_run.sh (host group GIDs are
+# dynamic, not stable). Default 65534 (nogroup) applies when run without it.
+#
+# The SGX SDK sample built here (e.g. SampleEnclave) does NOT use the AESM today: with
+# the Flexible/in-kernel Launch Control driver, launch happens without it. The aesm
+# service is only needed by the legacy Launch Enclave driver (AESM serves launch tokens).
+# It is kept wired up here because the layout generalizes to DCAP quote-generation samples,
+# which genuinely talk to the AESM over this socket for PCE/QE3. The standalone
+# build_and_run_sample_deb_docker.sh makes the AESM optional via USE_AESM (default off).
 services:
   aesm:
     image: sgx_aesm
     devices:
-      - /dev/sgx/enclave
-      - /dev/sgx/provision
+      - /dev/sgx_enclave
+      - /dev/sgx_provision
+    group_add:
+      - "${SGX_GID:-65534}"      # host "sgx" group
+      - "${SGX_PRV_GID:-65534}"  # host "sgx_prv" group
     volumes:
       - aesmd-socket:/var/run/aesmd
     stdin_open: true
@@ -45,13 +38,17 @@ services:
     environment:
       - http_proxy
       - https_proxy
+      # Bypass the proxy for the in-cluster PCCS (host default + peer); host no_proxy appended.
+      - no_proxy=host.docker.internal,pccs,localhost,127.0.0.1,${no_proxy:-}
 
   sample:
     image: sgx_sample
     depends_on:
       - aesm
     devices:
-      - /dev/sgx/enclave
+      - /dev/sgx_enclave
+    group_add:
+      - "${SGX_GID:-65534}"      # host "sgx" group
     volumes:
       - aesmd-socket:/var/run/aesmd
     stdin_open: true

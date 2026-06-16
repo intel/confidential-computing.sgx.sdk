@@ -31,7 +31,7 @@
 
 #include "sgx_tcrypto.h"
 #include "ippcp.h"
-#include "ippcp/fips_cert.h"
+#include "fips_cert.h"
 #include "se_cpu_feature.h"
 #include "se_cdefs.h"
 #include "sgx_error.h"

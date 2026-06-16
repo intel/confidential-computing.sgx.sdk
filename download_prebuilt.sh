@@ -6,7 +6,7 @@
 
 top_dir=`dirname $0`
 out_dir=$top_dir
-VERSION=2.29
+VERSION=2.30
 optlib_name=optimized_libs_${VERSION}.tar.gz
 ae_file_name=prebuilt_ae_${VERSION}.tar.gz
 binutils_file_name=as.ld.objdump.r4.tar.gz
@@ -53,7 +53,11 @@ if [ $? -ne 0 ]; then
     echo "Checksum verification failure"
     exit -1
 fi
-tar -zxf $optlib_name
+if [ "$1" = "no_prebuilt_ipp" ]; then
+    tar -zxf $optlib_name --exclude='external/ippcp_internal/*'
+else
+    tar -zxf $optlib_name
+fi
 tar -zxf $ae_file_name
 tar -zxf $binutils_file_name
 rm -f $optlib_name

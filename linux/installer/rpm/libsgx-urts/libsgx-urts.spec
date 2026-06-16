@@ -33,10 +33,30 @@ done
 
 %files -f %{_specdir}/list-%{name}
 
+# Detect whether rpmbuild has modern auto-debuginfo support (rpm >= 4.14).
+# We use this to keep one spec compatible across old/new RPM and only enable
+# legacy debug_package handling when auto-debuginfo is not available.
+%global __auto_debuginfo %{lua:
+  local v = rpm.expand("%{rpmversion}")
+  local maj, min = v:match("^(%d+)%.(%d+)")
+  maj, min = tonumber(maj), tonumber(min)
+  -- Unparseable version: assume modern RPM, skip legacy debug_package
+  if not (maj and min) then print("1")
+  elseif maj > 4 or (maj == 4 and min >= 14) then print("1")
+  else print("0")
+  end
+}
+
+%if 0%{?__auto_debuginfo} == 0
 %debug_package
+%endif
 
 %changelog
 * @date@ Intel Confidential Computing Team <confidential.computing@intel.com> - @version@-1
+- Release v2.30
+  See https://github.com/intel/confidential-computing.sgx/releases/tag/sgx_2.30 for full release notes.
+
+* Thu Apr 30 2026 Intel Confidential Computing Team <confidential.computing@intel.com> - 2.29.100.1-1
 - Release v2.29
   See https://github.com/intel/confidential-computing.sgx/releases/tag/sgx_2.29 for full release notes.
 

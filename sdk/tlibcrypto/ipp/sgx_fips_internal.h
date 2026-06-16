@@ -33,7 +33,7 @@
 
 #include "sgx_tcrypto.h"
 #include "ippcp.h"
-#include "ippcp/fips_cert.h"
+#include "fips_cert.h"
 #include "global_data.h"
 
 #define ERROR_SELFTEST_BREAK(test_result)     \

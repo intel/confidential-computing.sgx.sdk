@@ -1,5 +1,12 @@
 libsgx-headers (9.9.9.9-1) unstable; urgency=low
 
+  * Release v2.30
+    See https://github.com/intel/confidential-computing.sgx/releases/tag/sgx_2.30 for full release notes.
+
+ -- Intel Confidential Computing Team <confidential.computing@intel.com>  Fri, 01 Jan 2100 00:00:00 +0000
+
+libsgx-headers (2.29.100.1-all1) unstable; urgency=low
+
   * Release v2.29
     See https://github.com/intel/confidential-computing.sgx/releases/tag/sgx_2.29 for full release notes.
 
@@ -8,7 +15,7 @@ libsgx-headers (9.9.9.9-1) unstable; urgency=low
     2. ADDED `sgx_dcap_qal_types.h` header containing common QAL types.
        Origin: extracted from `sgx_dcap_qal.h` (part of libsgx-dcap-quote-verify-dev package)
 
- -- Intel Confidential Computing Team <confidential.computing@intel.com>  Fri, 01 Jan 2100 00:00:00 +0000
+ -- Intel Confidential Computing Team <confidential.computing@intel.com>  Thu, 30 Apr 2026 00:00:00 +0000
 
 libsgx-headers (2.28.100.1-all1) unstable; urgency=low
 

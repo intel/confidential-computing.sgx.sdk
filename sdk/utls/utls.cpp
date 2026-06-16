@@ -1,32 +1,6 @@
 /*
- * Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
- *     the documentation and/or other materials provided with the
- *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * Copyright(c) 2011-2026 Intel Corporation
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "sgx_utls.h"
@@ -38,8 +12,8 @@
 #include "se_memcpy.h"
 
 #include "sgx_ql_quote.h"
-#include "sgx_dcap_quoteverify.h"
-#include "sgx_dcap_ql_wrapper.h"
+#include "sgx_dcap_quoteverify_forward_decls.h" // -lsgx_dcap_quoteverify
+#include "sgx_dcap_ql_wrapper_forward_decls.h" // -lsgx_dcap_ql
 #include "sgx_pce.h"
 
 #include <openssl/sha.h>
@@ -141,9 +115,9 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence_host(
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     quote3_error_t func_ret = SGX_QL_ERROR_UNEXPECTED;
     uint8_t *p_quote = NULL;
-    uint32_t quote_size = 0;
+    uint32_t quote_size = RAW_QUOTE_MAX_SIZE;
     uint8_t *p_cbor_evidence = NULL;
-    uint32_t cbor_evidence_size = 0;
+    uint32_t cbor_evidence_size = CBOR_QUOTE_MAX_SIZE;
     sgx_cert_t cert = {0};
     uint8_t *pub_key_buff = NULL;
     size_t pub_key_buff_size = KEY_BUFF_SIZE;
@@ -184,12 +158,14 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence_host(
                 func_ret = SGX_QL_ERROR_OUT_OF_MEMORY;
                 break;
             }
+            memset(p_quote, 0, RAW_QUOTE_MAX_SIZE);
 
             p_cbor_evidence = (uint8_t*)malloc(CBOR_QUOTE_MAX_SIZE);
             if (!p_cbor_evidence) {
                 func_ret = SGX_QL_ERROR_OUT_OF_MEMORY;
                 break;
             }
+            memset(p_cbor_evidence, 0, CBOR_QUOTE_MAX_SIZE);
             
             if (sgx_cert_find_extension(
                 &cert,
@@ -197,12 +173,6 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence_host(
                 p_cbor_evidence,
                 &cbor_evidence_size) == SGX_SUCCESS)
             {
-                if (cbor_evidence_size > CBOR_QUOTE_MAX_SIZE)
-                {
-                    // buffer overflow, return error
-                    func_ret = SGX_QL_ERROR_UNEXPECTED;
-                    break;
-                }
                 // if tcg tagged evidence oid found, extract it here
                 ret = extract_cbor_evidence_and_compare_hash(p_cbor_evidence, cbor_evidence_size,
                             pub_key_buff, pub_key_buff_size,
@@ -219,13 +189,6 @@ extern "C" quote3_error_t tee_verify_certificate_with_evidence_host(
                     p_quote,
                     &quote_size) == SGX_SUCCESS)
            {
-                // if no tcg tagged evidence oid found, try to find the legacy
-                // oid
-                if (quote_size > RAW_QUOTE_MAX_SIZE)
-                {
-                    func_ret = SGX_QL_ERROR_UNEXPECTED;
-                    break;
-                }
                 ret = sgx_tls_compare_quote_hash(p_quote,
                             pub_key_buff, pub_key_buff_size);
                 if (ret != SGX_SUCCESS){

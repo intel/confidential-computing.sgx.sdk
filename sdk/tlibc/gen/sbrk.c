@@ -41,22 +41,49 @@
 SE_DECLSPEC_EXPORT size_t g_peak_heap_used = 0;
 /* Please be aware of: sbrk is not thread safe by default. */
 
-#ifndef SERVTD_ATTEST
 static void *heap_base __attribute__((section(RELRO_SECTION_NAME))) = NULL;
 static size_t heap_size __attribute__((section(RELRO_SECTION_NAME))) = 0;
 static int is_edmm_supported __attribute__((section(RELRO_SECTION_NAME))) = 0;
 static size_t heap_min_size __attribute__((section(RELRO_SECTION_NAME))) = 0;
-#else
-void *heap_base = NULL;
-size_t heap_size = 0;
-int is_edmm_supported = 0;
-size_t heap_min_size = 0;
-#endif
 
 extern int mm_commit(void* addr, size_t size);
 extern int mm_uncommit(void* addr, size_t size);
 
-int heap_init(void *_heap_base, size_t _heap_size, size_t _heap_min_size, int _is_edmm_supported)
+#ifdef SERVTD_ATTEST
+#define HEAP_INIT_SIGNATURE(name) int name(const void *_heap_base, size_t _heap_size)
+#define EXTRA_PARAMS_VALIDATION()
+#define EXTRA_PARAMS_ASSIGNMENT()
+#else
+#define HEAP_INIT_SIGNATURE(name) int name(void *_heap_base, size_t _heap_size, size_t _heap_min_size, int _is_edmm_supported)
+#define EXTRA_PARAMS_VALIDATION() \
+    do { \
+        if (_heap_min_size & (SE_PAGE_SIZE - 1)) \
+            return SGX_ERROR_UNEXPECTED; \
+    } while(0)
+#define EXTRA_PARAMS_ASSIGNMENT() \
+    do { \
+        heap_min_size = _heap_min_size; \
+        is_edmm_supported = _is_edmm_supported; \
+    } while(0)
+#endif
+
+#ifdef SERVTD_ATTEST
+/*
+ * Initialize the tlibc heap for a ServTD attestation library.
+ *
+ * Must be called exactly once, during library initialization, before any
+ * heap allocation occurs. The (base, size) pair must be page-aligned and
+ * must not wrap past SIZE_MAX.
+ *
+ * Returns SGX_SUCCESS on success, SGX_ERROR_UNEXPECTED if already
+ * initialized or if the parameters are invalid.
+ *
+ * UNSTABLE API: subject to change or removal without advance notice.
+ */
+HEAP_INIT_SIGNATURE(set_heap_base)
+#else
+HEAP_INIT_SIGNATURE(heap_init)
+#endif
 {
     if (heap_base != NULL)
         return SGX_ERROR_UNEXPECTED;
@@ -67,16 +94,15 @@ int heap_init(void *_heap_base, size_t _heap_size, size_t _heap_min_size, int _i
     if (_heap_size & (SE_PAGE_SIZE - 1))
         return SGX_ERROR_UNEXPECTED;
 
-    if (_heap_min_size & (SE_PAGE_SIZE - 1))
+    EXTRA_PARAMS_VALIDATION();
+
+    if (_heap_size > SIZE_MAX - (size_t)_heap_base)
         return SGX_ERROR_UNEXPECTED;
 
-    if (_heap_size > SIZE_MAX - (size_t)heap_base)
-        return SGX_ERROR_UNEXPECTED;
-
-    heap_base = _heap_base;
+    heap_base = (void*)_heap_base;
     heap_size = _heap_size;
-    heap_min_size = _heap_min_size;
-    is_edmm_supported = _is_edmm_supported;
+
+    EXTRA_PARAMS_ASSIGNMENT();
 
     return SGX_SUCCESS;
 }

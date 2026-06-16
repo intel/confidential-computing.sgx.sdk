@@ -440,6 +440,10 @@ bool protected_fs_file::update_all_data_and_mht_nodes()
 					     (result32 != -1) ? result32 : EIO;
 			return false;
 		}
+		if (!sgx_is_outside_enclave(file_addr, NODE_SIZE * (max_node_number + 1))) {
+			last_error = EFAULT;
+			return false;
+		}
 		real_file_size = NODE_SIZE * (max_node_number + 1);
 	}
 

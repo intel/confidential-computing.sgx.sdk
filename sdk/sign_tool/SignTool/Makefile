@@ -17,7 +17,7 @@ CFLAGS += $(FLAGS)
 CXXFLAGS += $(FLAGS)
 LDFLAGS := -pie $(COMMON_LDFLAGS) -Wno-odr
 
-PREBUILT_OPENSSL_DIR := $(LINUX_EXTERNAL_DIR)/dcap_source/prebuilt/openssl
+PREBUILT_OPENSSL_DIR := $(ROOT_DIR)/prebuilt/dcap/openssl
 CRYPTO_LIB := -L$(PREBUILT_OPENSSL_DIR)/lib/linux64 -lcrypto
 
 INC += $(ADDED_INC)

@@ -7,13 +7,14 @@
 	url = https://github.com/llvm-mirror/openmp.git
 	branch = svn-tags/RELEASE_801
 [submodule "dnnl"]
-	path = external/dnnl/dnnl
+	path = SampleCode/external/dnnl/dnnl
 	url = https://github.com/oneapi-src/oneDNN.git
 	branch = rls-v1.1
+	update = none  # Do not checkout this submodule automatically		
 [submodule "ipp-crypto"]
 	path = external/ippcp_internal/ipp-crypto
-	url = https://github.com/intel/ipp-crypto.git
-	branch = ipp-crypto_2021_12_1
+	url = https://github.com/intel/cryptography-primitives.git
+	branch = cryptography-primitives_2_2_0
 [submodule "external/protobuf/protobuf_code"]
 	path = external/protobuf/protobuf_code
 	url = https://github.com/protocolbuffers/protobuf.git

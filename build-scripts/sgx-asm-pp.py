@@ -37,6 +37,7 @@ import os
 import re 
 import shutil
 import argparse
+import subprocess
 
 LOCK = r'lock'
 REP = r'rep[a-z]*'
@@ -235,11 +236,30 @@ def insert_lfence(compiler, mitigation_level, infile, outfile):
 
     write_file(outfile, outputs)
 
+
+def nasm_version_like_string():
+    try:
+        out = subprocess.check_output(["nasm", "-v"], stderr=subprocess.STDOUT, text=True)
+        # NASM typically prints like: "NASM version 2.16.02"
+        return out.strip()
+    except Exception:
+        # Produce a string that CMake will reject as a valid version to generate an error message about NASM not being found or not working.
+        return "NASM version 0.0.0"
+
+
 def parse_options():
     options = []
     usage = "%(prog)s [options] [assembler arguments]"
+
+    # Keep -v distinct from --version: -v reports the NASM binary version
+    # installed on the platform and must work without requiring --assembler.
+    if '-v' in sys.argv[1:]:
+        print(nasm_version_like_string())
+        sys.exit(0)
+
     parser = argparse.ArgumentParser(usage=usage)
     parser.add_argument('--version', action='version', version=__version__)
+    parser.add_argument('-v', action='store_true', dest='nasm_version', help='print the NASM assembler version and exit')
     parser.add_argument('--assembler', type=str, help='specify assembler type: nasm|ml64|ml', required=True)
     parser.add_argument('--MITIGATION-CVE-2020-0551', type=str, dest='mitigation', default='NONE', help='specify CVE-2020-0551 mitigation level: NONE|LOAD|CF, [default: %(default)s]')
     (opts, args) = parser.parse_known_args()

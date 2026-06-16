@@ -38,6 +38,7 @@
 #include "cbor.h"
 #include "sgx_quote_4.h"
 #include "sgx_quote_5.h"
+#include "se_memcpy.h"
 
 typedef struct _cert
 {
@@ -347,11 +348,16 @@ static sgx_status_t compare_cert_pubkey_against_cbor_claim_hash(
     cbor_item_t* cbor_hash_entry)
 {
     uint8_t pk_der[PUB_KEY_MAX_SIZE] = {0};
-    size_t pk_der_size = 0;
+    size_t pk_der_size = PUB_KEY_MAX_SIZE;
     unsigned char *p_sha = NULL;
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     cbor_item_t* cbor_hash_alg_id = NULL;
     cbor_item_t* cbor_hash_value  = NULL;
+
+    if (pem_pub_key_len > KEY_BUFF_SIZE) {
+        ret = SGX_ERROR_INVALID_PARAMETER;
+        goto out;
+    }
 
     if (PEM2DER_PublicKey_converter(pem_pub_key, pem_pub_key_len, pk_der, &pk_der_size))
       goto out;
@@ -462,8 +468,13 @@ sgx_status_t extract_cbor_evidence_and_compare_hash(
     uint8_t* claims_buf = NULL;
     size_t claims_buf_size = 0;
     size_t quote_size = 0;
+    bool pubkey_flag = false;
 
-    if (evidence_buf_size == 0) return SGX_ERROR_UNEXPECTED;
+    if (cbor_evidence_buf == NULL || evidence_buf_size == 0 ||
+        pem_pub_key == NULL || pem_pub_key_len == 0 ||
+        out_quote == NULL || out_quote_size == NULL) {
+            return SGX_ERROR_INVALID_PARAMETER;
+    }
 
     struct cbor_load_result cbor_result;
     cbor_tagged_evidence = cbor_load(cbor_evidence_buf, evidence_buf_size, &cbor_result);
@@ -499,7 +510,7 @@ sgx_status_t extract_cbor_evidence_and_compare_hash(
     }
 
     quote_size = cbor_bytestring_length(cbor_quote);
-    if (quote_size < QUOTE_MIN_SIZE) {
+    if (quote_size < QUOTE_MIN_SIZE || quote_size > *out_quote_size) {
         ret = SGX_ERROR_TLS_X509_INVALID_EXTENSION;
         goto out;
     }
@@ -508,7 +519,10 @@ sgx_status_t extract_cbor_evidence_and_compare_hash(
         ret = SGX_ERROR_OUT_OF_MEMORY;
         goto out;
     }
-    memcpy(quote, cbor_bytestring_handle(cbor_quote), quote_size);
+    if (memcpy_s(quote, quote_size, cbor_bytestring_handle(cbor_quote), quote_size) != 0) {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
 
     cbor_claims = cbor_array_get(cbor_evidence, /*index=*/1);
     if (!cbor_claims || !cbor_isa_bytestring(cbor_claims)
@@ -519,7 +533,7 @@ sgx_status_t extract_cbor_evidence_and_compare_hash(
     }
 
     /* claims object is borrowed, no need to free separately */
-    claims_buf    = cbor_bytestring_handle(cbor_claims);
+    claims_buf = cbor_bytestring_handle(cbor_claims);
     claims_buf_size = cbor_bytestring_length(cbor_claims);
     assert(claims_buf && claims_buf_size);
 
@@ -552,8 +566,12 @@ sgx_status_t extract_cbor_evidence_and_compare_hash(
             goto out;
         }
 
-        if (strncmp((char*)cbor_string_handle(claims_pairs[i].key), "pubkey-hash",
-                    cbor_string_length(claims_pairs[i].key)) == 0) {
+        if (cbor_string_length(claims_pairs[i].key) == strlen("pubkey-hash")
+            && strncmp((char*)cbor_string_handle(claims_pairs[i].key), "pubkey-hash",
+                strlen("pubkey-hash")) == 0) {
+
+            pubkey_flag = true;
+
             /* claim { "pubkey-hash" : serialized CBOR array hash-entry (as CBOR bstr) } */
             if (!claims_pairs[i].value || !cbor_isa_bytestring(claims_pairs[i].value)
                     || !cbor_bytestring_is_definite(claims_pairs[i].value)
@@ -577,10 +595,21 @@ sgx_status_t extract_cbor_evidence_and_compare_hash(
             {
                 goto out;
             }
+
+            break;
         }
     }
 
-    memcpy(out_quote, quote, quote_size);
+    if (!pubkey_flag) {
+        ret = SGX_ERROR_TLS_X509_INVALID_EXTENSION;  // Or use a more specific error code
+        goto out;
+    }
+
+    if (memcpy_s(out_quote, *out_quote_size, quote, quote_size) != 0) {
+        ret = SGX_ERROR_UNEXPECTED;
+        goto out;
+    }
+
     *out_quote_size = (uint32_t)quote_size;
     ret = SGX_SUCCESS;
 
@@ -648,7 +677,7 @@ sgx_status_t sgx_public_key_write_pem(
     const char null_terminator = '\0';
 
     /* If buffer is null, then size must be zero */
-    if (!key || (!data && *size != 0)) {
+    if (!key || !size || (!data && *size != 0) || (data && *size == 0)) {
         result = SGX_ERROR_INVALID_PARAMETER;
         goto done;
     }
@@ -690,7 +719,10 @@ sgx_status_t sgx_public_key_write_pem(
         }
 
         /* Copy result to output buffer */
-        memcpy(data, mem->data, mem->length);
+        if (memcpy_s(data, *size, mem->data, mem->length) != 0) {
+            result = SGX_ERROR_UNEXPECTED;
+            goto done;
+        }
         *size = mem->length;
     }
 
@@ -717,7 +749,7 @@ sgx_status_t sgx_cert_find_extension(
     int num_extensions;
 
     /* Reject invalid parameters */
-    if (!_cert_is_valid(impl) || !oid || !size) {
+    if (!_cert_is_valid(impl) || !oid || !size || (data && *size == 0)) {
         result = SGX_ERROR_INVALID_PARAMETER;
         goto done;
     }
@@ -759,8 +791,16 @@ sgx_status_t sgx_cert_find_extension(
 
             if (data)
             {
-                memcpy(data, str->data, (size_t)str->length);
-                *size = (size_t)str->length;
+                if ((uint32_t)str->length > *size)
+                {
+                    result = SGX_ERROR_INVALID_PARAMETER;
+                    goto done;
+                }
+                if (memcpy_s(data, *size, str->data, (uint32_t)str->length) != 0) {
+                    result = SGX_ERROR_UNEXPECTED;
+                    goto done;
+                }
+                *size = (uint32_t)str->length;
                 result = SGX_SUCCESS;
                 goto done;
             }
@@ -824,7 +864,10 @@ sgx_status_t sgx_tls_compare_quote_hash(uint8_t *p_quote,
     }
     if (quote_type == 0x81) {
         uint16_t _version = 0;
-        memcpy((void*)&_version, p_quote, sizeof(_version));
+        if (memcpy_s((void*)&_version, sizeof(_version), p_quote, sizeof(_version)) != 0) {
+            ret = SGX_ERROR_UNEXPECTED;
+            goto done;
+        }
 
         if (_version == 5) 
         {
@@ -890,45 +933,55 @@ static char b64revtb[256] = {
   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1  /*240-255*/
 };
 
-static unsigned int raw_base64_decode(uint8_t *in,
-                        uint8_t* out, int strict, int *err) {
-    unsigned int  result = 0;
+static unsigned int raw_base64_decode(uint8_t *in, size_t in_len,
+                            uint8_t* out, size_t out_len,
+                            int strict, int *err) {
+    if (!in || !out || !err) {
+        if (err) *err = 1;
+        return 0;
+    }
+
+    unsigned int result = 0;
     int x = 0;
     unsigned char buf[3] = {0, 0, 0};
-    unsigned char *p = in, pad = 0;
+    unsigned char *p = in;
+    int pad = 0;
 
     *err = 0;
-    while (!pad) {
-        switch ((x = b64revtb[*p++])) {
+    while (!pad && (size_t)(p - in) < in_len) {
+        uint8_t current_byte = *p++;
+        x = b64revtb[current_byte];
+
+        switch (x) {
             case -3: /* NULL TERMINATOR */
                 if (((p - 1) - in) % 4) *err = 1;
                 return result;
-            case -2: /* PADDING CHARACTER. INVALID HERE */
-                if (((p - 1) - in) % 4 < 2) {
-                    *err = 1;
-                    return result;
-                } else if (((p - 1) - in) % 4 == 2) {
-                    /* Make sure there's appropriate padding */
-                    if (*p != '=') {
+
+            case -2: /* PADDING CHARACTER '=' */
+                {
+                    size_t pos = (p - 1) - in;
+                    if (pos % 4 < 2) {
                         *err = 1;
                         return result;
+                    } else if (pos % 4 == 2) {
+                        if ((size_t)(p - in) >= in_len || *p != '=') {
+                            *err = 1;
+                            return result;
+                        }
+                        pad = 2;
+                    } else {
+                        pad = 1;
                     }
-                    buf[2] = 0;
-                    pad = 2;
-                    result++;
-                    break;
-                } else {
-                    pad = 1;
-                    result += 2;
                     break;
                 }
-                return result;
-            case -1:
+
+            case -1: /* INVALID CHAR */
                 if (strict) {
                     *err = 2;
                     return result;
                 }
                 break;
+
             default:
                 switch (((p - 1) - in) % 4) {
                     case 0:
@@ -944,14 +997,38 @@ static unsigned int raw_base64_decode(uint8_t *in,
                         break;
                     case 3:
                         buf[2] |= (unsigned char)x;
-                        result += 3;
-                        for (x = 0;  x < 3 - pad;  x++) *out++ = buf[x];
+                        for (int i = 0; i < 3; i++) {
+                            if (result < out_len) {
+                                *out++ = buf[i];
+                                result++;
+                            } else {
+                                *err = 3;
+                                return result;
+                            }
+                        }
                         break;
                 }
                 break;
         }
     }
-    for (x = 0;  x < 3 - pad;  x++) *out++ = buf[x];
+
+    if (strict && !pad && (in_len % 4 != 0)) {
+        *err = 1;
+    }
+
+    if (pad > 0) {
+        int remaining = 3 - pad;
+        for (x = 0; x < remaining; x++) {
+            if (result < out_len) {
+                *out++ = buf[x];
+                result++;
+            } else {
+                *err = 3;
+                break;
+            }
+        }
+    }
+
     return result;
 }
 
@@ -1005,6 +1082,9 @@ int PEM2DER_PublicKey_converter(const uint8_t *pem_pub, size_t pem_len, uint8_t 
     if (pem_pub == NULL || pem_len == 0)
         return 1;
 
+    if (der == NULL || der_len == NULL || *der_len == 0)
+        return 1;
+
     stripped_pk_pem = (uint8_t*)malloc(pem_len);
     if (stripped_pk_pem == NULL) return 1;
     memset(stripped_pk_pem, 0x00, pem_len);
@@ -1015,7 +1095,7 @@ int PEM2DER_PublicKey_converter(const uint8_t *pem_pub, size_t pem_len, uint8_t 
         free(stripped_pk_pem);
         return 1;
     }
-    temp_len = raw_base64_decode(stripped_pk_pem, der, 0, &errorcode);
+    temp_len = raw_base64_decode(stripped_pk_pem, pem_len, der, *der_len, 0, &errorcode);
     free(stripped_pk_pem);
     if (!errorcode)
     {

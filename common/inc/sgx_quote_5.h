@@ -48,6 +48,20 @@
 #define TD_INFO_RESERVED_BYTES_V1_5 64
 #define TD_INFO_RESERVED_BYTES_V1_5_EX 24
 
+/* Keep these masks C-compatible while preserving C++ scoped aliases in tee_info_v1_5_ex_t. */
+#define TEE_INFO_V1_5_EX_ATTRIBUTES_SERVTD_EXT 0x00020000u
+
+#define TEE_INFO_V1_5_EX_VALID_CRITICAL_FIELDS 0x000000FFu
+#define TEE_INFO_V1_5_EX_VALID_MIGRATION_SERVTD_HASH_BIT 0x00000001u
+#define TEE_INFO_V1_5_EX_VALID_CRITICAL_RESERVED \
+    (TEE_INFO_V1_5_EX_VALID_CRITICAL_FIELDS & ~TEE_INFO_V1_5_EX_VALID_MIGRATION_SERVTD_HASH_BIT)
+
+#define TEE_INFO_V1_5_EX_VALID_NON_CRITICAL_FIELDS 0xFFFFFF00u
+#define TEE_INFO_V1_5_EX_VALID_TD_ID_BIT 0x00000100u
+#define TEE_INFO_V1_5_EX_VALID_VM_ID_BIT 0x00000200u
+#define TEE_INFO_V1_5_EX_VALID_NON_CRITICAL_RESERVED \
+    (TEE_INFO_V1_5_EX_VALID_NON_CRITICAL_FIELDS & ~(TEE_INFO_V1_5_EX_VALID_TD_ID_BIT | TEE_INFO_V1_5_EX_VALID_VM_ID_BIT))
+
 typedef struct _tee_td_id_t {
     uint8_t u[32];
 } tee_td_id_t;
@@ -59,6 +73,21 @@ typedef struct _tee_devinfo_t {
 typedef struct _tee_fmspc_t {
     uint8_t f[12];
 } tee_fmspc_t;
+
+typedef struct _tdx_servtd_ext_t {
+    tee_measurement_t init_server_td_hash; ///<   0: Initial SERVTD_HASH (non-NRX) or Mig Policy Hash (NRX)
+    tee_attributes_t init_server_td_attr;  ///<  48: Initial SERVTD_ATTR (non-NRX) or 0 (NRX) INIT_SERVTD_HASH generator policy.00's is default security safe.
+    uint8_t reserved[8];                   ///<  56: Reserved, must be zero
+    tee_cpu_svn_t init_cpu_svn;            ///<  64: TD’s initial CPUSVN from creation
+    tee_tcb_svn_t init_tee_tcb_svn;        ///<  80: TD’s initial TEE_TCB_SVN from creation
+    tee_fmspc_t init_tee_fmspc;            ///<  96: Model information corresponding to the model that INIT_TEE_TCB_SVN was captured on
+    uint8_t reserved1[4];                  ///< 108: Reserved, must be zero
+    tee_measurement_t curr_server_td_hash; ///< 112: Current SERVTD_HASH (non-NRX) or Mig Policy Hash (NRX)
+    tee_attributes_t curr_server_td_attr;  ///< 160: Current SERVTD_ATTR (non-NRX) or 0 (NRX) CUR_SERV_TD_HASH generator policy.00's is default security safe.
+    uint8_t reserved2[8];                  ///< 168: Reserved, must be zero
+    uint8_t reserved3[48];                 ///< 176: Reserved, must be zero
+    uint8_t reserved4[48];                 ///< 224: Reserved, must be zero
+} tdx_servtd_ext_t;
 
 typedef struct _tee_info_v1_5_t               /* 512 bytes */
 {
@@ -96,23 +125,26 @@ typedef struct _tee_info_v1_5_ex_t                      /* 512 bytes */
                                                             - Bit 9: VMID
                                                             - Bits 10-31: Reserved for non-critical fields*/
 
-    // Declaring an enum does not add space to the struct
-    // But it lets us scope so we don't have #defines for similarly named fields / structs
-    // Could have used a namespace too I guess.
-    enum attributes_mask {
-        servtd_ext = 0x00020000, /* Bit 17 Indicates that TDREPORT_STRUCT includes a hash of SERVTD_EXT_STRUCT instead of SERVTD_HASH */
+#ifdef __cplusplus
+    enum
+    SGX_DEPRECATED_MSG("Please use macro define instead, which is more portable.")
+    attributes_mask {
+        servtd_ext = TEE_INFO_V1_5_EX_ATTRIBUTES_SERVTD_EXT
     };
 
-    enum valid_bit_mask {
-        critical_fields = 0x000000FF,
-        migration_servtd_hash_bit = 0x00000001,
-        critical_reserved = (critical_fields & ~migration_servtd_hash_bit),
+    enum
+    SGX_DEPRECATED_MSG("Please use macro define instead, which is more portable.")
+    valid_bit_mask {
+        critical_fields = TEE_INFO_V1_5_EX_VALID_CRITICAL_FIELDS,
+        migration_servtd_hash_bit = TEE_INFO_V1_5_EX_VALID_MIGRATION_SERVTD_HASH_BIT,
+        critical_reserved = TEE_INFO_V1_5_EX_VALID_CRITICAL_RESERVED,
 
-        non_critical_fields = 0xFFFFFF00,
-        td_id_bit = 0x00000100,
-        vm_id_bit = 0x00000200,
-        non_critical_reserved = (non_critical_fields & ~(td_id_bit | vm_id_bit))
+        non_critical_fields = TEE_INFO_V1_5_EX_VALID_NON_CRITICAL_FIELDS,
+        td_id_bit = TEE_INFO_V1_5_EX_VALID_TD_ID_BIT,
+        vm_id_bit = TEE_INFO_V1_5_EX_VALID_VM_ID_BIT,
+        non_critical_reserved = TEE_INFO_V1_5_EX_VALID_NON_CRITICAL_RESERVED
     };
+#endif
 } tee_info_v1_5_ex_t;
 
 #define TD_TEE_TCB_INFO_RESERVED_BYTES_V1_5 95
