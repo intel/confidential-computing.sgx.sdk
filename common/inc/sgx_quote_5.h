@@ -77,11 +77,16 @@ typedef struct _tee_fmspc_t {
 typedef struct _tdx_servtd_ext_t {
     tee_measurement_t init_server_td_hash; ///<   0: Initial SERVTD_HASH (non-NRX) or Mig Policy Hash (NRX)
     tee_attributes_t init_server_td_attr;  ///<  48: Initial SERVTD_ATTR (non-NRX) or 0 (NRX) INIT_SERVTD_HASH generator policy.00's is default security safe.
-    tee_cpu_svn_t init_cpu_svn;            ///<  56: TD’s initial CPUSVN from creation
-    tee_tcb_svn_t init_tee_tcb_svn;        ///<  72: TD’s initial TEE_TCB_SVN from creation
-    tee_fmspc_t init_tee_fmspc;            ///<  88: Model information corresponding to the model that INIT_TEE_TCB_SVN was captured on
-    tee_measurement_t curr_server_td_hash; ///< 100: Current SERVTD_HASH (non-NRX) or Mig Policy Hash (NRX)
-    tee_attributes_t curr_server_td_attr;  ///< 148: Current SERVTD_ATTR (non-NRX) or 0 (NRX) CUR_SERV_TD_HASH generator policy.00's is default security safe.
+    uint8_t reserved[8];                   ///<  56: Reserved, must be zero
+    tee_cpu_svn_t init_cpu_svn;            ///<  64: TD’s initial CPUSVN from creation
+    tee_tcb_svn_t init_tee_tcb_svn;        ///<  80: TD’s initial TEE_TCB_SVN from creation
+    tee_fmspc_t init_tee_fmspc;            ///<  96: Model information corresponding to the model that INIT_TEE_TCB_SVN was captured on
+    uint8_t reserved1[4];                  ///< 108: Reserved, must be zero
+    tee_measurement_t curr_server_td_hash; ///< 112: Current SERVTD_HASH (non-NRX) or Mig Policy Hash (NRX)
+    tee_attributes_t curr_server_td_attr;  ///< 160: Current SERVTD_ATTR (non-NRX) or 0 (NRX) CUR_SERV_TD_HASH generator policy.00's is default security safe.
+    uint8_t reserved2[8];                  ///< 168: Reserved, must be zero
+    uint8_t reserved3[48];                 ///< 176: Reserved, must be zero
+    uint8_t reserved4[48];                 ///< 224: Reserved, must be zero
 } tdx_servtd_ext_t;
 
 typedef struct _tee_info_v1_5_t               /* 512 bytes */
