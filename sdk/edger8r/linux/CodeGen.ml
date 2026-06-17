@@ -1202,6 +1202,10 @@ let gen_struct_ptr_direction_pre_copy (param_direction: Ast.ptr_direction) (stru
         ] @ gen_tmp_var_for_out @
         [
         sprintf "if (%s != NULL && %s != 0) {" in_ptr_dst_name len_var;
+        "\t//";
+        "\t// fence after pointer checks";
+        "\t//";
+        "\tsgx_lfence();";
         ] @ check_size @
         [
         sprintf "\tif (memcpy_s(__tmp_%s, %s, %s, %s)) {" in_struct_name len_var in_struct_member len_var;
@@ -1399,6 +1403,10 @@ let gen_struct_ptr_direction_post (param_direction: Ast.ptr_direction) (struct_t
                 "\t\tstatus = SGX_ERROR_INVALID_PARAMETER;";
                 "\t\tbreak;";
                 "\t}";
+                "\t//";
+                "\t// fence after pointer checks";
+                "\t//";
+                "\tsgx_lfence();";
                 sprintf "\tif (memcpy_verw_s(%s, %s, %s, %s)) {" in_ptr_name in_len_ptr_var in_struct_member out_len_ptr_var;
                 sprintf "\t\tstatus = SGX_ERROR_UNEXPECTED;";
                 "\t\tbreak;";
@@ -2172,6 +2180,10 @@ let gen_func_tproxy (ufunc: Ast.untrusted_func) (idx: int) =
                             sprintf "\t\t%s();" sgx_ocfree_fn;
                             "\t\treturn SGX_ERROR_INVALID_PARAMETER;";
                             "\t}";
+                            "\t//";
+                            "\t// fence after pointer checks";
+                            "\t//";
+                            "\tsgx_lfence();";
                             sprintf "\tif (memcpy_s(%s, %s, __tmp_member_%s, %s)) {" para_struct_member in_len_ptr_var struct_name out_len_ptr_var;
                             sprintf "\t\t%s();" sgx_ocfree_fn;
                             "\t\treturn SGX_ERROR_UNEXPECTED;";
