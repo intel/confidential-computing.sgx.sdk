@@ -41,6 +41,11 @@ mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 PROJ_DIR := $(dir $(mkfile_path))
 SGXSSL_DIR ?= $(PROJ_DIR)sgxssl
 SGXSSL_PKG_PATH := $(SGXSSL_DIR)/Linux/package
+# Since 3.0_Rev5, Intel SGX SSL splits the file-function ocalls out into a separate
+# sgxssl_file.edl that lives in either include/filefunc (file ocalls enabled) 
+# or include/nofilefunc (no-op file ocalls). sgx_tsgxssl.edl imports it, so the
+# enclave/host edger8r runs need this on their search path.
+SGXSSL_EDL_PATH := $(SGXSSL_PKG_PATH)/include/nofilefunc
 SOCKET_DIR ?= $(PROJ_DIR)sgx_socket
 
 #$(info "*******DEBUG MESSAGE: SGXSSL PATH SET TO***********")

@@ -42,7 +42,8 @@ build:
 		--search-path $(INCDIR) \
 		--search-path ../../common \
 		--search-path $(SOCKET_INCDIR) \
-		--search-path $(SGXSSL_PKG_PATH)/include
+		--search-path $(SGXSSL_PKG_PATH)/include \
+		--search-path $(SGXSSL_EDL_PATH)
 	
 	$(CC) -c $(App_C_Flags) tls_server_u.c
 	$(CXX) -c -DM_TLS_SERVER $(App_Cpp_Flags) host.cpp ../../sgx_socket/untrusted_sgx_socket.cpp ../../common/ucommon.cpp

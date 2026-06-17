@@ -53,7 +53,8 @@ build:
 		--search-path $(INCDIR) \
 		--search-path $(SOCKET_DIR)/include \
 		--search-path ../../common \
-		--search-path $(SGXSSL_PKG_PATH)/include
+		--search-path $(SGXSSL_PKG_PATH)/include \
+		--search-path $(SGXSSL_EDL_PATH)
 
 	$(CXX) -c -DM_TLS_SERVER $(Enclave_Cpp_Flags) -I. -std=c++11 -include "tsgxsslio.h" ${SRC_FILES}
 	$(CC) -c $(Enclave_C_Flags) -I. tls_server_t.c
