@@ -46,5 +46,6 @@ extern "C" char *__stpcpy_chk (char *dest, const char *src, size_t dest_len) {
         abort();
     }
 
-    return stpncpy(dest, src, src_len-1);
+    memcpy(dest, src, src_len);
+    return dest + src_len - 1;
 }
