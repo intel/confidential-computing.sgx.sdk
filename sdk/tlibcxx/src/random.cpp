@@ -196,8 +196,11 @@ random_device::~random_device()
 unsigned
 random_device::operator()()
 {
-    unsigned result;
-    sgx_read_rand(reinterpret_cast<unsigned char*>(&result), sizeof(result));
+    unsigned result = 0;
+    sgx_status_t ret = sgx_read_rand(
+        reinterpret_cast<unsigned char*>(&result), sizeof(result));
+    if (ret != SGX_SUCCESS)
+        __throw_system_error(EAGAIN, "random_device: sgx_read_rand failed");
     return result;
 }
 
