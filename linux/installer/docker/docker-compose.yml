@@ -1,65 +1,125 @@
 #
-# Copyright (C) 2020 Intel Corporation. All rights reserved.
+# Copyright(c) 2020-2026 Intel Corporation
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# SPDX-License-Identifier: BSD-3-Clause
 #
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in
-#     the documentation and/or other materials provided with the
-#     distribution.
-#   * Neither the name of Intel Corporation nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
+
+# docker-compose stack for the SGX SDK samples, driven by build_compose_run.sh (it picks the
+# COMPOSE_PROFILE and exports the host SGX group GIDs). See the "Compose stack and profiles"
+# section in README.md for the services, profiles, driver and GID details.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# If you use the Legacy Launch Control driver, replace /dev/sgx/enclave with /dev/isgx for both
-# sample and aesm, and remove /dev/sgx/provision in "devices" list for aesm
-#
-version: '3'
+# Profiles: hw (default), hw-inproc, sim, and aesm (out-of-process AESM sidecar). aesm-nodev and
+# sim-aesm-client are CI-only smoke-test topologies.
+
+# Required by docker-compose v1 for profiles:/x- support (v2 ignores it with a deprecation warning).
+version: "3.8"
+
+# Base for every sample container: the prebuilt sample image with proxy env and an interactive TTY.
+x-sample-common: &sample-common
+  image: sgx_sample
+  stdin_open: true
+  tty: true
+  environment:
+    - http_proxy
+    - https_proxy
+
+# Base for the AESM sidecar: the AESM image owning the shared socket, with a health gate on it.
+x-aesm-common: &aesm-common
+  image: sgx_aesm
+  volumes:
+    - aesmd-socket:/var/run/aesmd
+  stdin_open: true
+  tty: true
+  environment:
+    - http_proxy
+    - https_proxy
+  healthcheck:
+    test: ["CMD-SHELL", "test -S /var/run/aesmd/aesm.socket"]
+    start_period: 30s
+    interval: 1h
+    timeout: 1s
+    retries: 30
+
+# Sample side of the AESM link: mount the shared socket + point the DCAP loader at it via SGX_AESM_ADDR
+# (merge FIRST, before *sample-common, so this environment wins).
+x-aesm-client: &aesm-client
+  volumes:
+    - aesmd-socket:/var/run/aesmd
+  environment:
+    - http_proxy
+    - https_proxy
+    - SGX_AESM_ADDR=/var/run/aesmd/aesm.socket
 
 services:
   aesm:
-    image: sgx_aesm
-    devices:
-      - /dev/sgx/enclave
-      - /dev/sgx/provision
-    volumes:
-      - aesmd-socket:/var/run/aesmd
-    stdin_open: true
-    tty: true
-    environment:
-      - http_proxy
-      - https_proxy
-
-  sample:
-    image: sgx_sample
-    depends_on:
+    <<: *aesm-common
+    profiles:
       - aesm
     devices:
-      - /dev/sgx/enclave
-    volumes:
-      - aesmd-socket:/var/run/aesmd
-    stdin_open: true
-    tty: true
-    environment:
-      - http_proxy
-      - https_proxy
+      - /dev/sgx_enclave
+      - /dev/sgx_provision
+    group_add:
+      - "${SGX_GID:-65534}"      # host "sgx" group
+      - "${SGX_PRV_GID:-65533}"  # host "sgx_prv" group
+
+  # Device-less AESM sidecar for non-SGX CI smoke tests: used with the sim-aesm-client profile
+  # to verify the with-AESM compose topology without SGX devices. Not a functional quoting path.
+  aesm-nodev:
+    <<: *aesm-common
+    profiles:
+      - aesm-nodev
+
+  # Out-of-process quoting (DEFAULT, profile "hw"): a DCAP sample offloads PCE/QE3 to the AESM over
+  # the shared socket, so it needs only /dev/sgx_enclave + the sgx group (the AESM owns provisioning).
+  # Non-quoting samples ignore SGX_AESM_ADDR.
+  sample:
+    <<: [*aesm-client, *sample-common]
+    depends_on:
+      aesm:
+        condition: service_healthy
+    profiles:
+      - hw
+    devices:
+      - /dev/sgx_enclave
+    group_add:
+      - "${SGX_GID:-65534}"      # host "sgx" group
+
+  # In-process quoting: the sample loads PCE/QE3 itself instead of using the AESM, so it needs the
+  # provisioning device /dev/sgx_provision + the sgx_prv group (and SGX_AESM_ADDR must stay UNSET --
+  # the DCAP loader treats any value, even "", as out-of-process). No AESM service required.
+  sample-inproc:
+    <<: *sample-common
+    profiles:
+      - hw-inproc
+    devices:
+      - /dev/sgx_enclave
+      - /dev/sgx_provision
+    group_add:
+      - "${SGX_GID:-65534}"      # host "sgx" group
+      - "${SGX_PRV_GID:-65533}"  # host "sgx_prv" group
+
+  # Simulation-mode sample: no SGX device/group/AESM (simulation runtime is self-contained).
+  sample-sim:
+    <<: *sample-common
+    profiles:
+      - sim
+
+  # Simulation-mode sample with SGX_AESM_ADDR set and AESM socket mounted. Used alongside
+  # the aesm-nodev sidecar to smoke-test the with-AESM compose topology without SGX devices.
+  # The AESM cannot perform real quoting without /dev/sgx_provision; this is topology-only.
+  sample-sim-aesm-client:
+    <<: [*aesm-client, *sample-common]
+    depends_on:
+      aesm-nodev:
+        condition: service_healthy
+    profiles:
+      - sim-aesm-client
 
 volumes:
   aesmd-socket:
-    external: true
+    name: aesmd-socket
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: rw

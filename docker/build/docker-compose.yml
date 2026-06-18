@@ -14,7 +14,9 @@
 version: '3'
 
 # SGX_GID / SGX_PRV_GID are exported by build_compose_run.sh (host group GIDs are
-# dynamic, not stable). Default 65534 (nogroup) applies when run without it.
+# dynamic, not stable). When a group is absent the fallback is a harmless placeholder
+# GID (nobody/nogroup-range); the two fallbacks are deliberately DIFFERENT so Compose's
+# duplicate-item check passes when neither SGX group exists on the host.
 #
 # The SGX SDK sample built here (e.g. SampleEnclave) does NOT use the AESM today: with
 # the Flexible/in-kernel Launch Control driver, launch happens without it. The aesm
@@ -30,7 +32,7 @@ services:
       - /dev/sgx_provision
     group_add:
       - "${SGX_GID:-65534}"      # host "sgx" group
-      - "${SGX_PRV_GID:-65534}"  # host "sgx_prv" group
+      - "${SGX_PRV_GID:-65533}"  # host "sgx_prv" group
     volumes:
       - aesmd-socket:/var/run/aesmd
     stdin_open: true

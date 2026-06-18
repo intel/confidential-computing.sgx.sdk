@@ -1,0 +1,6 @@
+# Keep local-artifact staging constrained to the intended files only.
+# This does not affect the rest of the build context.
+_sgx_local_artifacts/*
+!_sgx_local_artifacts/.keep
+!_sgx_local_artifacts/repo.tgz
+!_sgx_local_artifacts/sdk_installer.bin

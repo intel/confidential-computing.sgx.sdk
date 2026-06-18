@@ -1,0 +1,4 @@
+# Local-artifact staging directory. .keep is tracked so COPY in Dockerfile always succeeds.
+# Actual artifact files (repo.tgz, sdk_installer.bin) are gitignored.
+/_sgx_local_artifacts/*
+!/_sgx_local_artifacts/.keep

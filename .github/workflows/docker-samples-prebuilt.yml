@@ -1,0 +1,238 @@
+name: SGX Docker samples (using pre-built binaries)
+
+# Builds the download-based Docker sample images (linux/installer/docker) for every supported
+# SampleCode/ sample as a matrix, by invoking the same helper scripts a developer runs locally
+# (build_and_run_sample_docker.sh / build_compose_run.sh) -- so CI exercises those scripts rather
+# than a parallel re-implementation. Each script takes a positional stage:
+#   ./script build   -> build the image(s)    (must pass for every sample)
+#   ./script run     -> run the sample/stack  (SIM: must pass; HW rows use strict expected-fail signatures on non-SGX CI)
+# 'Expected fail' cases (due to no HW on runner) are prefixed with "XF" in the job name for easy filtering;
+#
+# Most samples are single-container (build_and_run_sample_docker.sh -> docker run). SampleAttestedTLS
+# is the one DCAP-quoting sample and is exercised as a MULTI-CONTAINER docker compose stack
+# (build_compose_run.sh -> the sample + a SEPARATE aesm service, profiles hw,aesm).
+# Note AESM is a HW-only component, so the sample only proves communication, not a functional E2E.
+#
+# Runner / caching: this workflow supports both a repository-configured runner override
+# (vars.RUNNER_CI_BUILD) and default GitHub-hosted runners. The scripts intentionally use plain
+# docker build (not buildx/type=gha) so behavior stays aligned across environments; any layer cache
+# reuse is provided by the active runner environment.
+
+on:
+  push:
+    branches:
+      - 'main*'
+    paths:
+      - 'linux/installer/docker/**'
+      - '.github/workflows/docker-samples-prebuilt.yml'
+  pull_request:
+    branches:
+      - 'main*'
+    paths:
+      - 'linux/installer/docker/**'
+      - '.github/workflows/docker-samples-prebuilt.yml'
+  schedule:
+    # Monthly smoke build on the default branch (catches 01.org repo / base-image drift).
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+    inputs:
+      sgx_version:
+        description: 'Optional 01.org release to pin (e.g. 2.29). Empty = rolling latest.'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # docker/build-context for every build in this workflow.
+  DOCKER_DIR: linux/installer/docker
+  # Optional release pin (only set via workflow_dispatch); empty tracks the rolling latest.
+  SGX_VERSION: ${{ inputs.sgx_version }}
+  # Compose plugin version used when bootstrap install is needed.
+  COMPOSE_VER: v2.29.7
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # ---------------------------------------------------------------------------------------------
+  # Per-sample build (+ run) by calling the repo's helper scripts. SIM samples must build and run;
+  # HW samples must build and their run result must match policy (pass or expected-fail signature).
+  # ---------------------------------------------------------------------------------------------
+  samples:
+    # AttestedTLS is the only sample run two ways, so disambiguate its rows by quoting model:
+    # compose=true -> with-aesm (out-of-process QE/PCE); compose=false -> in-proc QE/PCE.
+    # Every other sample keeps just the mode.
+    name: "${{ matrix.run == 'expected-fail' && 'XF ' || '' }}${{ matrix.sample }} (${{ matrix.mode }}${{ matrix.compose == true && ', with-aesm' || (matrix.sample == 'SampleAttestedTLS' && ', in-proc' || '') }})"
+    runs-on: ${{ vars.RUNNER_CI_BUILD || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- Simulator: build + run, must pass --------------------------------------------
+          - { sample: Cxx11SGXDemo,       mode: SIM, run: pass }
+          - { sample: Cxx14SGXDemo,       mode: SIM, run: pass }
+          - { sample: Cxx17SGXDemo,       mode: SIM, run: pass }
+          - { sample: LocalAttestation,   mode: SIM, run: pass }
+          - { sample: PowerTransition,    mode: SIM, run: pass }
+          - { sample: ProtobufSGXDemo,    mode: SIM, run: pass }
+          - { sample: SampleEnclave,      mode: SIM, run: pass }
+          - { sample: SampleEnclaveGMIPP, mode: SIM, run: pass }
+          - { sample: SampleEnclavePCL,   mode: SIM, run: pass }
+          - { sample: SealUnseal,         mode: SIM, run: pass }
+          - { sample: Switchless,         mode: SIM, run: pass }
+          # --- Hardware-only: build must pass; run policy is strict expected-fail on non-SGX CI -
+          # SampleAEXNotify's Makefile rejects SIM; SampleAttestedTLS needs DCAP/HW quoting.
+          # For these two non-DCAP HW-only samples, on non-SGX CI runners we REQUIRE a precise
+          # runtime failure signature (the app starts, then fails in-enclave with no SGX device),
+          # instead of allowing any error.
+          - { sample: SampleCommonLoader, mode: HW, run: expected-fail, expected_exit: 1, expected_output: "[get_driver_type edmm_utility.cpp:116] Failed to open Intel SGX device." }
+          - { sample: SampleAEXNotify,    mode: HW, run: expected-fail, expected_exit: 255, expected_output: "Error: Invalid SGX device." }
+          # AttestedTLS is run both ways in HW mode; both are strict expected-fail on non-SGX CI.
+          # The HW binary needs SGX in all paths — both rows reach "Error: Invalid SGX device."
+          # from the enclave loader and exit 2 (make propagates the nonzero server/client exit).
+          # compose row: two patterns required — one from each service — proving both containers ran.
+          #   expected_output:  AESM sidecar logged its device-less QE3 failure
+          #   expected_output2: sample container hit the enclave device check
+          - { sample: SampleAttestedTLS, mode: HW, run: expected-fail, compose: true,  expected_exit: 2, expected_regex: true, expected_output: "aesm-nodev-1.*Failed to load QE3", expected_output2: "sample-sim-aesm-client-1.*Error: Invalid SGX device" } # with-aesm
+          - { sample: SampleAttestedTLS, mode: HW, run: expected-fail, compose: false, expected_exit: 2, expected_output: "Error: Invalid SGX device." } # in-proc
+    env:
+      # Inputs consumed by helpers/sample-defaults.sh (sourced by both helper scripts).
+      SAMPLE_NAME: ${{ matrix.sample }}
+      SGX_MODE: ${{ matrix.mode }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate sgx_version input
+        run: |
+          if [ -z "${SGX_VERSION:-}" ]; then
+            exit 0
+          fi
+          case "$SGX_VERSION" in
+            *[!0-9.]*|.*|*.|*..*)
+              echo "ERROR: SGX_VERSION must be digits-and-dots only (example: 2.29). Got: $SGX_VERSION" >&2
+              exit 1
+              ;;
+            *)
+              ;;
+          esac
+
+      # Pick the helper script the developer would run for this sample: the compose stack driver
+      # for the DCAP sample, the single-container runner for everything else.
+      - name: Select helper script
+        id: script
+        run: |
+          if [ "${{ matrix.compose == true }}" = "true" ]; then
+            echo "name=./build_compose_run.sh" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=./build_and_run_sample_docker.sh" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Compose is required only for compose rows (SampleAttestedTLS via AESM). Most GH-hosted
+      # runners already provide it; ARC/self-hosted may not. Install a user-local v2 plugin only
+      # when both `docker compose` and `docker-compose` are missing.
+      - name: Ensure Docker Compose is available
+        if: ${{ matrix.compose }}
+        run: |
+          if docker compose version >/dev/null 2>&1 || docker-compose version >/dev/null 2>&1; then
+            echo "INFO: Docker Compose already available"
+            exit 0
+          fi
+
+          os=$(uname -s | tr '[:upper:]' '[:lower:]')
+          arch=$(uname -m)
+          case "$arch" in
+            x86_64|amd64) arch=x86_64 ;;
+            aarch64|arm64) arch=aarch64 ;;
+            armv7l|armv7) arch=armv7 ;;
+            *)
+              echo "ERROR: unsupported architecture for compose bootstrap: $arch" >&2
+              exit 1
+              ;;
+          esac
+
+          plugin_dir="$HOME/.docker/cli-plugins"
+          mkdir -p "$plugin_dir"
+          curl -fsSL "https://github.com/docker/compose/releases/download/${COMPOSE_VER}/docker-compose-${os}-${arch}" \
+            -o "$plugin_dir/docker-compose"
+          chmod +x "$plugin_dir/docker-compose"
+
+          # Also expose legacy docker-compose on PATH for environments/scripts that prefer v1 name.
+          mkdir -p "$HOME/.local/bin"
+          ln -sf "$plugin_dir/docker-compose" "$HOME/.local/bin/docker-compose"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+          docker compose version >/dev/null 2>&1 || docker-compose version >/dev/null 2>&1 || {
+            echo "ERROR: Docker Compose bootstrap completed but compose is still unavailable" >&2
+            exit 1
+          }
+          echo "INFO: Docker Compose bootstrapped (${COMPOSE_VER})"
+
+      # Build stage: must succeed for every sample.
+      - name: Build sample image(s)
+        working-directory: ${{ env.DOCKER_DIR }}
+        run: sh ${{ steps.script.outputs.name }} build
+
+      # Run stage (strict pass): e.g. SIM rows must succeed.
+      - name: Run sample (expect pass)
+        if: ${{ matrix.run == 'pass' }}
+        working-directory: ${{ env.DOCKER_DIR }}
+        run: timeout 300 sh ${{ steps.script.outputs.name }} run
+
+      # Run stage (strict expected fail): the row passes ONLY when both the concrete exit code
+      # and the concrete output signature match.
+      - name: Run sample (expect fail signature)
+        if: ${{ matrix.run == 'expected-fail' }}
+        working-directory: ${{ env.DOCKER_DIR }}
+        run: |
+          set +e
+          timeout 300 sh ${{ steps.script.outputs.name }} run 2>&1 | tee /tmp/run.log
+          rc=${PIPESTATUS[0]}
+          set -e
+
+          expected_rc='${{ matrix.expected_exit }}'
+          expected_msg='${{ matrix.expected_output }}'
+          expected_msg2='${{ matrix.expected_output2 }}'
+          # expected_regex: true rows use grep -E (ERE); all others use grep -F (fixed string).
+          if [ '${{ matrix.expected_regex }}' = 'true' ]; then grep_flag=-E; else grep_flag=-F; fi
+
+          if [ "$rc" -ne "$expected_rc" ]; then
+            echo "ERROR: expected exit code $expected_rc but got $rc" >&2
+            exit 1
+          fi
+
+          if ! grep $grep_flag "$expected_msg" /tmp/run.log >/dev/null; then
+            echo "ERROR: expected output not found: $expected_msg" >&2
+            exit 1
+          fi
+
+          if [ -n "$expected_msg2" ] && ! grep $grep_flag "$expected_msg2" /tmp/run.log >/dev/null; then
+            echo "ERROR: expected output 2 not found: $expected_msg2" >&2
+            exit 1
+          fi
+
+          echo "expected-fail row matched (rc=$rc, all output patterns found)"
+
+      # Tear down the compose stack + shared socket volume (compose row only) so the persistent
+      # runner (if used)is left clean for the next run.
+      - name: Tear down compose stack
+        if: ${{ always() && matrix.compose }}
+        working-directory: ${{ env.DOCKER_DIR }}
+        run: |
+          if docker compose version >/dev/null 2>&1; then
+            docker compose --profile hw --profile aesm --profile hw-inproc --profile sim down || true
+          elif docker-compose version >/dev/null 2>&1; then
+            docker-compose --profile hw --profile aesm --profile hw-inproc --profile sim down || true
+          else
+            echo "WARNING: neither 'docker compose' nor 'docker-compose' is available; skipping compose down" >&2
+          fi
+          docker volume rm -f aesmd-socket || true
