@@ -1,47 +1,22 @@
 #!/usr/bin/env bash
 #
-# Copyright (C) 2011-2025 Intel Corporation. All rights reserved.
+# Copyright(c) 2011-2026 Intel Corporation
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in
-#     the documentation and/or other materials provided with the
-#     distribution.
-#   * Neither the name of Intel Corporation nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+# SPDX-License-Identifier: BSD-3-Clause
 #
 
 top_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 openssl_out_dir=$top_dir/openssl_source
-openssl_ver=3.0.19
+openssl_ver=3.0.21
 openssl_ver_name=openssl-$openssl_ver
 sgxssl_github_archive=https://github.com/intel/intel-sgx-ssl/archive
-sgxssl_file_name=3.0_Rev5.2
+sgxssl_file_name=3.0_Rev5.4
 build_script=$top_dir/Linux/build_openssl.sh
-server_url_path=https://www.openssl.org/source/
+server_url_path=https://www.openssl.org/source
 full_openssl_url=$server_url_path/$openssl_ver_name.tar.gz
 
-sgxssl_chksum=4c0bbee5972223fd9c444323e363f75701d892c2890631bc2b80e353175d20a0
-openssl_chksum=fa5a4143b8aae18be53ef2f3caf29a2e0747430b8bc74d32d88335b94ab63072
+sgxssl_chksum=e6891fa0e527de24d241343e593b7ccfb516bd44564415bfbee0228a82387e3e
+openssl_chksum=617e29af8e421f46649484a4937e48c685e47f46488167c982f88bc4ec1d522f
 rm -f check_sum_sgxssl.txt check_sum_openssl.txt
 if [ ! -f $build_script ]; then
     wget $sgxssl_github_archive/$sgxssl_file_name.zip -P $top_dir || exit 1
