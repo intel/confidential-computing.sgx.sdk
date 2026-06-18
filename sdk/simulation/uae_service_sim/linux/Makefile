@@ -19,11 +19,7 @@ INCLUDES := -I..                                                   \
             -I$(LINUX_SDK_DIR)/simulation/tinst                    \
             -I$(LINUX_SDK_DIR)/simulation/urtssim                  \
             -I$(LINUX_EXTERNAL_DIR)/rdrand/                        \
-            -I$(LINUX_PSW_DIR)/ae/inc                              \
-            -I$(LINUX_PSW_DIR)/ae/inc/internal                     \
-            -I$(LINUX_PSW_DIR)/ae/common                           \
-            -I$(PREBUILT_OPENSSL_DIR)/inc                          \
-            -I$(DCAP_DIR)/QuoteGeneration/quote_wrapper/common/inc
+            -I$(PREBUILT_OPENSSL_DIR)/inc
 
 
 CXXFLAGS += -Wall -fPIC $(INCLUDES) -Werror -g $(CET_FLAGS)
@@ -37,8 +33,7 @@ EXTERNAL_LIB += -L$(RDRAND_LIBDIR) -lrdrand
 EXTERNAL_LIB += -L$(RDRAND_LIBDIR) -lrt
 EXTERNAL_LIB += -ldl $(CRYPTO_LIB)
 
-vpath %.cpp $(LINUX_PSW_DIR)/ae/common \
-            $(LINUX_SDK_DIR)/simulation/urtssim \
+vpath %.cpp $(LINUX_SDK_DIR)/simulation/urtssim \
             $(COMMON_DIR)/src
 
 vpath %.c   $(COMMON_DIR)/src

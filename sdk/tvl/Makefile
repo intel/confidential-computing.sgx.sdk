@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2011-2025 Intel Corporation
+# Copyright(c) 2011-2026 Intel Corporation
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -10,7 +10,7 @@ TVL_CPP_SRCS := $(wildcard *.cpp)
 TVL_OBJS := $(TVL_CPP_SRCS:.cpp=.o)
 
 COMMON_INCLUDE	:= -I$(COMMON_DIR)/inc -I$(COMMON_DIR)/inc/tlibc -I$(LINUX_SDK_DIR)/tlibcxx/include
-TVL_INC  += $(COMMON_INCLUDE) -I../../ae/QvE/Include -I$(DCAP_DIR)/QuoteGeneration/quote_wrapper/common/inc -I$(DCAP_DIR)/QuoteGeneration/pce_wrapper/inc -I$(DCAP_DIR)/QuoteVerification/appraisal/qal
+TVL_INC  += $(COMMON_INCLUDE)
 
 
 TVL_LIB  := sgx_dcap_tvl

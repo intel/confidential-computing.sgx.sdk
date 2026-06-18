@@ -18,8 +18,6 @@ else
         SGXSSL_TCRYPTO = sgx_tsgxssl_crypto
 endif
 
-SGX_QV_PATH ?= ../../external/dcap_source/QuoteVerification
-SGX_QVE_PATH ?= ../../external/dcap_source/ae/QvE
 PREBUILT_OPENSSL_PATH ?= $(ROOT_DIR)/prebuilt/dcap/openssl
 CBOR_PATH ?= $(LINUX_EXTERNAL_DIR)/cbor
 CBOR_RELATIVE_PATH ?= ../../external/cbor
@@ -29,10 +27,6 @@ INCLUDE += -I$(COMMON_DIR)/inc/tlibc                                    \
            -I$(LINUX_SDK_DIR)/include/ra_tls/forward_decls              \
            -I$(COMMON_DIR)/inc                                          \
            -I$(LINUX_SDK_DIR)/tlibcxx/include                           \
-           -I$(SGX_QVE_PATH)/Include                                    \
-           -I$(SGX_QV_PATH)/appraisal/qal                               \
-           -I$(SGX_QV_PATH)/../QuoteGeneration/quote_wrapper/common/inc \
-           -I$(SGX_QV_PATH)/../QuoteGeneration/quote_wrapper/tdx_attest \
            -I$(LINUX_SDK_DIR)/tvl                                       \
            -include./tsgxsslio.h                                        \
            -I$(PREBUILT_OPENSSL_PATH)/inc
