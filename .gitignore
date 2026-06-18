@@ -35,3 +35,7 @@ linux/reproducibility/code_dir/
 
 # IDE files
 .idea/
+
+# Python cache files
+__pycache__/
+*.pyc
