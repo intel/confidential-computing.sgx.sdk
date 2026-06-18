@@ -76,9 +76,9 @@ sdk_no_mitigation:
 	$(MAKE) -C sdk/ USE_OPT_LIBS=$(USE_OPT_LIBS)
 
 sdk:
-	$(MAKE) -C sdk/ clean
+	$(MAKE) -C sdk/ clean MITIGATION-CVE-2020-0551=LOAD
 	$(MAKE) -C sdk/ MODE=$(MODE) MITIGATION-CVE-2020-0551=LOAD
-	$(MAKE) -C sdk/ clean
+	$(MAKE) -C sdk/ clean MITIGATION-CVE-2020-0551=CF
 	$(MAKE) -C sdk/ MODE=$(MODE) MITIGATION-CVE-2020-0551=CF
 	$(MAKE) -C sdk/ clean
 	$(MAKE) -C sdk/ MODE=$(MODE)

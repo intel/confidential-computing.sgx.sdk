@@ -16,15 +16,19 @@ TVL_INC  += $(COMMON_INCLUDE)
 TVL_LIB  := sgx_dcap_tvl
 TVL_NAME := lib$(TVL_LIB).a
 
-
+# Use per-variant build directories (pioneer pattern for future SDK-wide refactor)
+# This enables incremental builds and avoids the clean-rebuild cycle of the legacy SDK pattern.
 ifeq ($(MITIGATION-CVE-2020-0551), LOAD)
-	BUILD_DIR := $(DCAP_DIR)/QuoteGeneration/build/linuxLOAD
+	BUILD_DIR := $(ROOT_DIR)/build/linuxLOAD
 else ifeq ($(MITIGATION-CVE-2020-0551), CF)
-	BUILD_DIR := $(DCAP_DIR)/QuoteGeneration/build/linuxCF
+	BUILD_DIR := $(ROOT_DIR)/build/linuxCF
 else
-	BUILD_DIR := $(DCAP_DIR)/QuoteGeneration/build/linux
+	BUILD_DIR := $(ROOT_DIR)/build/linux
 endif
 
+# Per-module object directory for proper incremental builds
+OBJDIR := $(BUILD_DIR)/obj/tvl
+TVL_OBJS_FULL := $(addprefix $(OBJDIR)/, $(TVL_OBJS))
 
 ifneq ($(DEBUG), 1)
     COMMON_FLAGS += -ffunction-sections -fdata-sections
@@ -34,25 +38,25 @@ ENCLAVE_CXXFLAGS += $(SGX_COMMON_CXXFLAGS) $(COMMON_FLAGS) -fPIC
 
 .PHONY: all
 
-all: install_lib $(TVL_NAME)
+all: $(BUILD_DIR)/$(TVL_NAME)
 
 $(BUILD_DIR):
 	@$(MKDIR) $@
 
-install_lib: $(TVL_NAME) | $(BUILD_DIR)
-	@$(CP) $(TVL_NAME) $|
+$(OBJDIR):
+	@$(MKDIR) $@
 
-$(TVL_OBJS): %.o: %.cpp
+$(OBJDIR)/%.o: %.cpp | $(OBJDIR)
 	$(CXX) $(ENCLAVE_CXXFLAGS) $(TVL_INC) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(TVL_NAME): $(TVL_OBJS)
-	$(AR) rsD $(TVL_NAME) $(TVL_OBJS)
+$(BUILD_DIR)/$(TVL_NAME): $(TVL_OBJS_FULL) | $(BUILD_DIR)
+	$(AR) rsD $@ $^
 
 
 .PHONY: clean
 
 clean:
 	@echo "Cleaning objects"
-	@rm -f $(TVL_OBJS) $(TVL_NAME)
+	@rm -rf $(OBJDIR)
 	@rm -f $(BUILD_DIR)/$(TVL_NAME)

@@ -355,3 +355,15 @@ clean:
 	@$(RM) -rf $(BUILD_DIR)/.tmm_rsrv
 	@$(RM) -rf $(BUILD_DIR)/.tlibcxx
 	@$(RM) -rf $(BUILD_DIR)/.cpprt
+ifneq ($(filter LOAD CF,$(MITIGATION-CVE-2020-0551)),)
+	@# When building with MITIGATION, we also remove the variant-specific directory (build/linuxLOAD or build/linuxCF).
+	@# These directories contain ONLY SDK outputs, so full removal is safe.
+	@# 
+	@# Note: This removal was previously done at build time (before mv), but we moved it here to clean
+	@# so it respects MITIGATION scope and doesn't clobber per-variant components during builds.
+	@# 
+	@# Without MITIGATION, we do NOT remove the entire build/linux directory because it may contain
+	@# PSW outputs (aesm_service, urts, uae_service) or other non-SDK artifacts. We rely on
+	@# component-level clean targets above to remove SDK artifacts only.
+	@$(RM) -rf $(BUILD_DIR)$(MITIGATION-CVE-2020-0551)
+endif
