@@ -5,9 +5,6 @@
 #
 
 # Modern in-kernel driver (kernel 5.11+): uses /dev/sgx_enclave and /dev/sgx_provision.
-# Old out-of-tree driver: replace /dev/sgx_enclave with /dev/isgx and drop /dev/sgx_provision.
-# With the legacy Launch Enclave driver the AESM is REQUIRED (it issues launch tokens), so
-# keep the aesm service up: compose runs it by default -- do NOT set USE_AESM=0 there.
 #
 
 # version kept for docker-compose < 1.27.0 (Debian 10, Ubuntu 20.04, RHEL 8); ignored by Compose v2.
@@ -19,10 +16,9 @@ version: '3'
 # duplicate-item check passes when neither SGX group exists on the host.
 #
 # The SGX SDK sample built here (e.g. SampleEnclave) does NOT use the AESM today: with
-# the Flexible/in-kernel Launch Control driver, launch happens without it. The aesm
-# service is only needed by the legacy Launch Enclave driver (AESM serves launch tokens).
-# It is kept wired up here because the layout generalizes to DCAP quote-generation samples,
-# which genuinely talk to the AESM over this socket for PCE/QE3. The standalone
+# the in-kernel Launch Control driver, launch happens without it. It is kept wired up
+# here because the layout generalizes to DCAP quote-generation samples, which genuinely
+# talk to the AESM over this socket for PCE/QE3. The standalone
 # build_and_run_sample_deb_docker.sh makes the AESM optional via USE_AESM (default off).
 services:
   aesm:

@@ -9,11 +9,11 @@ set -e
 docker build --target sample_deb --build-arg https_proxy=$https_proxy \
              --build-arg http_proxy=$http_proxy -t sgx_sample_deb -f ./Dockerfile ../../
 
-# In-kernel driver (5.11+) uses /dev/sgx_enclave; old out-of-tree driver: /dev/isgx.
+# In-kernel driver (5.11+) uses /dev/sgx_enclave.
 
 # The SGX SDK sample built here (SGX SDK SampleEnclave) does NOT use the AESM, so it is OFF by
-# default; it is required with the legacy Launch Enclave driver (set USE_AESM=1 there), and
-# some DCAP-based quote-generation samples or RA-RLS (which talk to the AESM for PCE/QE3). 
+# default; currently it is used by some DCAP-based quote-generation samples or RA-TLS (which may talk
+# to the AESM for PCE/QE3 out-of-process quoting).
 # USE_AESM=1 mounts an external AESM socket bound at /var/run/aesmd (its well-known default). 
 # AESM_SOCKET_DIR picks the source: 
 #  - a named volume (e.g. 'aesmd-socket'[default] from build_and_run_aesm_deb_docker.sh, which is a tmpfs

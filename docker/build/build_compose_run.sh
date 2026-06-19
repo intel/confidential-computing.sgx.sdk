@@ -43,8 +43,7 @@ docker volume create --driver local --opt type=tmpfs --opt device=tmpfs --opt o=
 # /dev/sgx_provision). Missing groups fall back to nogroup (65534), an unprivileged GID.
 #
 # USE_AESM brings up the AESM container. Default on (full stack); set USE_AESM=0 to run
-# only the sample container (the SGX SDK sample does not need the AESM). Keep it on (the
-# default) for the legacy Launch Enclave driver, where the AESM issues launch tokens.
+# only the sample container (the SGX SDK sample does not need the AESM).
 [ "${USE_AESM:-1}" = "0" ] && RUN_SERVICES="--no-deps sample" || RUN_SERVICES=""
 SGX_GID=$(getent group sgx 2>/dev/null | cut -d: -f3) \
 SGX_PRV_GID=$(getent group sgx_prv 2>/dev/null | cut -d: -f3) \

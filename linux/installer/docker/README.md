@@ -115,15 +115,16 @@ Three driver generations exist, each with a different device node:
 
 | Driver | Device node | Notes |
 |---|---|---|
-| In-kernel (Linux 5.11+) | `/dev/sgx_enclave`, `/dev/sgx_provision` | Recommended; requires FLC-capable CPU. |
-| [DCAP out-of-tree driver](https://github.com/intel/confidential-computing.tee.dcap/tree/DCAP_1.23/driver) *(archived, last: DCAP 1.23)* | `/dev/sgx` | FLC-capable CPU required. Use when the kernel is too old for the built-in driver. No longer maintained. |
-| [Legacy Launch Control driver](https://github.com/intel/linux-sgx-driver) *(archived)* | `/dev/isgx` | Does **not** require FLC; for pre-FLC hardware or very old kernels. No longer maintained. |
+| In-kernel (Linux 5.11+) | `/dev/sgx_enclave`, `/dev/sgx_provision` | Recommended; Flexible Launch Control (FLC), requires an FLC-capable CPU. |
+| [DCAP out-of-tree driver](https://github.com/intel/confidential-computing.tee.dcap/tree/DCAP_1.23/driver) *(archived, last: DCAP 1.23)* | <ul><li>`/dev/sgx_enclave`, `/dev/sgx_provision` (current; ≥ driver V1.41 / DCAP 1.23, matches in-kernel)</li><li>compat symlinks `/dev/sgx/enclave`, `/dev/sgx/provision`</li><li>`/dev/sgx` + `/dev/sgx_prv` on intermediate (V1.22) builds; single node `/dev/sgx` on very old (≤ V1.21) builds</li></ul> | Flexible Launch Control (FLC), requires an FLC-capable CPU. Use when the kernel is too old for the built-in driver. No longer maintained. |
+| [Legacy Launch Control driver](https://github.com/intel/linux-sgx-driver) *(archived)* | `/dev/isgx` | Launch Enclave (LE)-based; does **not** require FLC; for pre-FLC hardware or very old kernels. No longer maintained. |
 
 The scripts and Compose files target the in-kernel driver (or the DCAP out-of-tree driver, which uses the same device nodes). To use the **Legacy** Launch Control driver (`/dev/isgx`) instead, edit the device mappings:
 1. In all three files (`docker-compose.yml`, `build_and_run_aesm_docker.sh`, `build_and_run_sample_docker.sh`): replace `/dev/sgx_enclave` with `/dev/isgx`.
 2. In all three files: also **remove** every `/dev/sgx_provision` reference (the legacy driver exposes no separate provisioning device).
 
-**Note:** When switching drivers, uninstall the previous one and reboot before installing the other. For `/dev/isgx` (legacy driver) pin `SGX_VERSION=2.27` (or earlier) — PSW 2.28+ already refuses to open it. For `/dev/sgx` (DCAP OOT driver) current PSW still opens it, but the code path is marked for removal in the development tree and may stop functioning in a future release.
+**Note:** When switching drivers, uninstall the previous one and reboot before installing the other. The DCAP out-of-tree driver uses the same `/dev/sgx_enclave` / `/dev/sgx_provision` nodes as the in-kernel driver, so no remapping is needed. For the Legacy Launch Enclave (LE)-based driver (`/dev/isgx`), pin `SGX_VERSION=2.27` (or earlier) — PSW 2.28+ refuses to open it, and the LE-based code path was removed from the development tree in 2.28.
+If you use an older DCAP OOT driver version that exposes `/dev/sgx` (single-node), current PSW still opens it, but the code path is marked for removal in the development tree and may stop functioning in a future release.
 
 Pre-FLC hardware (`/dev/isgx`) relies on the AESM for the Launch Enclave, so set `USE_AESM=1`. 
 
