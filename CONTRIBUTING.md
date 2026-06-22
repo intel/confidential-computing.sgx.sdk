@@ -2,20 +2,20 @@
 
 ## Issues
 
-GitHub Issues tracks SGX SDK and PSW design and development issues, bugs, and feature requests.
-For usage, installation, or other requests for help, please use the [01.org](https://01.org/intel-software-guard-extensions/forum/forum) forum instead. 
+GitHub Issues tracks SGX SDK and PSW enclave runtime design and development issues, bugs, and feature requests.
+For usage, installation, or other requests for help, please use the [community.intel.com](https://community.intel.com/t5/Intel-Software-Guard-Extensions/bd-p/software-guard-extensions) forum instead. 
 
 When reporting a bug, please provide the following information, where applicable:
 
 * What are the steps to reproduce the bug?
-* Can you reproduce the bug using the latest [master](https://github.com/01org/linux-sgx/tree/master)?
+* Can you reproduce the bug using the latest [main](https://github.com/intel/confidential-computing.sgx.sdk)?
 * What CPU, platform, operating system/distribution, and SGX driver are you running? The more specific, the better.
-* For crashes, please provide the backtrace (use gdb).
+* For crashes, please provide the backtrace (use `gdb`).
 
 
 ### Contribution Guide
 
-We accept contributions as pull requests on GitHub. More detailed guidelines will be added later. Please follow these simple rules for now: 
+We accept contributions as pull requests on GitHub. Please follow these simple rules: 
 
 * A PR should have a clear purpose, and do one thing only, and nothing more. This will enable us review your PR more quickly.
 * Each commit in PR should be a small, atomic change representing one step in development.
@@ -24,7 +24,7 @@ We accept contributions as pull requests on GitHub. More detailed guidelines wil
 
 ### License
 
-linux-sgx is licensed under the terms in [LICENSE](https://github.com/01org/linux-sgx/blob/master/License.txt). By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
+Intel(R) SGX software for Linux is licensed under the terms in [LICENSE](https://github.com/intel/confidential-computing.sgx.sdk/blob/main/License.txt). By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
 ### Sign your work
 
