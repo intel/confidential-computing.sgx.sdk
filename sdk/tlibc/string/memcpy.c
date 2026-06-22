@@ -191,13 +191,30 @@ memcpy(void *dst0, const void *src0, size_t length)
         return dst0;
     }
 
-    bool is_src_external = !sgx_is_within_enclave(src0, length);
-    bool is_dst_external = !sgx_is_within_enclave(dst0, length);
+    bool is_src_inside  = sgx_is_within_enclave(src0, length);
+    bool is_src_outside = sgx_is_outside_enclave(src0, length);
+    bool is_dst_inside  = sgx_is_within_enclave(dst0, length);
+    bool is_dst_outside = sgx_is_outside_enclave(dst0, length);
 
-    //src is inside the enclave
-    if(!is_src_external)
+    // Require each operand to be classified as exactly one of {wholly inside,
+    // wholly outside} the enclave. Abort on any non-classifiable range (i.e., not
+    // wholly inside or wholly outside), such as a buffer straddling the enclave
+    // boundary, a wraparound/overflowed range (start+size overflow), or the
+    // inconsistent case where the SDK reports a range as both. Copying a
+    // non-classifiable range could leak enclave secrets to host memory or let the
+    // host inject bytes across the boundary, so we fail closed. abort() is the
+    // intentional response here: memcpy() has no error return, and silently
+    // refusing the copy would mask a memory-safety violation rather than stop it.
+    if ((is_src_inside == is_src_outside) || (is_dst_inside == is_dst_outside))
     {
-        if(is_dst_external)
+        abort();
+    }
+
+    //src is inside the enclave (the abort above guarantees exactly one of inside/
+    //outside is true for each operand, so is_src_inside implies !is_src_outside)
+    if(is_src_inside)
+    {
+        if(is_dst_outside)
         {
             return memcpy_verw(dst0, src0, length);
         }
@@ -225,14 +242,14 @@ memcpy(void *dst0, const void *src0, size_t length)
         else
         {
             len = 8 - (unsigned long long)dst%8;
-            copy_external_memory(dst, src, len, is_dst_external);
+            copy_external_memory(dst, src, len, is_dst_outside);
             src += len;
             dst += len;
             length -= len;
         }
     }
     //less than 8 bytes left
-    copy_external_memory(dst, src, length, is_dst_external);
+    copy_external_memory(dst, src, length, is_dst_outside);
 
     return dst0;
 }
