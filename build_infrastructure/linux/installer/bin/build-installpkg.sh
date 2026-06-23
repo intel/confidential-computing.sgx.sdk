@@ -59,6 +59,12 @@ get_arch()
  
 
 ARCH=$(get_arch)
+
+if [[ "$ARCH" != "x64" ]]; then
+    echo "ERROR: Only x64 architecture is supported. Got: $ARCH"
+    exit 1
+fi
+
 PACKAGE_SUFFIX="$ARCH"
 
 source ${LINUX_INSTALLER_COMMON_SDK_DIR}/installConfig.${PACKAGE_SUFFIX}

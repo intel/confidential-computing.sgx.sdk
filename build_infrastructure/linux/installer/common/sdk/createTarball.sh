@@ -26,6 +26,11 @@ get_arch()
 
 ARCH=$(get_arch)
 
+if [[ "$ARCH" != "x64" ]]; then
+    echo "ERROR: Only x64 architecture is supported. Got: $ARCH"
+    exit 1
+fi
+
 # Get the configuration for this package
 source ${SCRIPT_DIR}/installConfig.${ARCH}
 
