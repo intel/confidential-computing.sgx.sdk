@@ -33,7 +33,13 @@
 
 set -e
 
-SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR="$(readlink -f "$(dirname "$0")")"
+ROOT_DIR="$(readlink -f "${SCRIPT_DIR}/../../../../..")"
+
+cd "${ROOT_DIR}" # for relative path resolution
+
+PKG_OUT_ROOT_DIR="${PKG_OUT_ROOT_DIR:-${ROOT_DIR}/build_infrastructure/linux/installer}"
+DEB_OUT_DIR="${PKG_OUT_ROOT_DIR}/deb"
 COMMON_DIR="${SCRIPT_DIR}/../../common/libsgx-urts"
 
 rm -f ${SCRIPT_DIR}/libsgx-urts*.deb
@@ -43,5 +49,6 @@ rm -f ${SCRIPT_DIR}/libsgx-urts*.tar.xz
 rm -f ${SCRIPT_DIR}/libsgx-urts*.dsc
 rm -f ${SCRIPT_DIR}/libsgx-urts*.changes
 rm -f ${SCRIPT_DIR}/libsgx-urts*.buildinfo
+find "${DEB_OUT_DIR}" -type f \( -name "libsgx-urts*.deb" -o -name "libsgx-urts-dbgsym*.ddeb" \) -delete 2>/dev/null || true
 rm -f ${COMMON_DIR}/gen_source.py
 rm -rf ${COMMON_DIR}/output

@@ -24,19 +24,19 @@ INC += $(ADDED_INC)
 INC +=  -I$(COMMON_DIR)/inc                         \
         -I$(COMMON_DIR)/inc/internal                \
         -I$(COMMON_DIR)/inc/internal/linux/         \
-        -I$(LINUX_PSW_DIR)/enclave_common           \
-        -I$(LINUX_PSW_DIR)/urts                     \
-        -I$(LINUX_PSW_DIR)/urts/linux               \
+        -I$(LINUX_ENCLAVE_RUNTIME_DIR)/enclave_common           \
+        -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts                     \
+        -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/linux               \
         -I$(LINUX_EXTERNAL_DIR)/tinyxml2            \
-        -I$(LINUX_PSW_DIR)/urts/parser              \
+        -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser              \
         -I$(PREBUILT_OPENSSL_DIR)/inc
 
 DIR1 := $(LINUX_EXTERNAL_DIR)/tinyxml2/
 DIR2 := $(COMMON_DIR)/src/
-DIR3 := $(LINUX_PSW_DIR)/urts/
-DIR4 := $(LINUX_PSW_DIR)/urts/linux
-DIR5 := $(LINUX_PSW_DIR)/urts/parser
-DIR6 := $(LINUX_PSW_DIR)/psw/urts/parser/linux
+DIR3 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/
+DIR4 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/linux
+DIR5 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser
+DIR6 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser/linux
 
 OBJ1 := manage_metadata.o      \
         enclave_creator_sign.o \
@@ -66,7 +66,7 @@ $(BUILD_DIR):
 	@$(MKDIR) $@
 
 sgx_sign: PRIVATE_LDLIBS  := -lpthread -lenclaveparser $(CRYPTO_LIB) -ldl
-sgx_sign: PRIVATE_LDFLAGS := -L$(LINUX_PSW_DIR)/urts/parser $(LDFLAGS)
+sgx_sign: PRIVATE_LDFLAGS := -L$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser $(LDFLAGS)
 
 sgx_sign: $(OBJS) enclaveparser
 	$(CXX) $(CXXFLAGS) $(OBJS) $(PRIVATE_LDFLAGS) $(PRIVATE_LDLIBS) -o $@
@@ -80,8 +80,8 @@ $(C_OBJS):   %.o: $(DIR2)%.c
 .PHONY: clean
 clean:
 	$(RM) *~ *.o sgx_sign $(BUILD_DIR)/sgx_sign
-	$(MAKE) -C $(LINUX_PSW_DIR)/urts/parser/ clean
+	$(MAKE) -C $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser/ clean
 
 .PHONY: enclaveparser
 enclaveparser:
-	$(MAKE) -C $(LINUX_PSW_DIR)/urts/parser/ SIGN_TOOL=1
+	$(MAKE) -C $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser/ SIGN_TOOL=1

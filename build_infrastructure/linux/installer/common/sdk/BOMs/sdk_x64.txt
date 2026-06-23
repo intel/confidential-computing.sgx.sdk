@@ -42,10 +42,10 @@ DeliveryName	InstallName	FileCheckSum	FileFeature	FileOwner
 <deliverydir>/build/linux/libtdx_tls.a	<installdir>/package/lib64/libtdx_tls.a	0	main	STP
 <deliverydir>/build/linux/libsgx_utls.a	<installdir>/package/lib64/libsgx_utls.a	0	main	STP
 <deliverydir>/build/linux/libsgx_dcap_tvl.a	<installdir>/package/lib64/libsgx_dcap_tvl.a	0	main	STP
-<deliverydir>/linux/installer/common/sdk/installConfig.x64	<installdir>/scripts/installConfig	0	main	STP
-<deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_uae_service_sim.pc	<installdir>/package/pkgconfig/libsgx_uae_service_sim.pc	0	main	STP
-<deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_quote_ex_sim.pc	<installdir>/package/pkgconfig/libsgx_quote_ex_sim.pc	0	main	STP
-<deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_urts_sim.pc	<installdir>/package/pkgconfig/libsgx_urts_sim.pc	0	main	STP
-<deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_uae_service.pc	<installdir>/package/pkgconfig/libsgx_uae_service.pc	0	main	STP
-<deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_quote_ex.pc	<installdir>/package/pkgconfig/libsgx_quote_ex.pc	0	main	STP
-<deliverydir>/linux/installer/common/sdk/pkgconfig/x64/libsgx_urts.pc	<installdir>/package/pkgconfig/libsgx_urts.pc	0	main	STP
+<deliverydir>/build_infrastructure/linux/installer/common/sdk/installConfig.x64	<installdir>/scripts/installConfig	0	main	STP
+<deliverydir>/build_infrastructure/linux/installer/common/sdk/pkgconfig/x64/libsgx_uae_service_sim.pc	<installdir>/package/pkgconfig/libsgx_uae_service_sim.pc	0	main	STP
+<deliverydir>/build_infrastructure/linux/installer/common/sdk/pkgconfig/x64/libsgx_quote_ex_sim.pc	<installdir>/package/pkgconfig/libsgx_quote_ex_sim.pc	0	main	STP
+<deliverydir>/build_infrastructure/linux/installer/common/sdk/pkgconfig/x64/libsgx_urts_sim.pc	<installdir>/package/pkgconfig/libsgx_urts_sim.pc	0	main	STP
+<deliverydir>/build_infrastructure/linux/installer/common/sdk/pkgconfig/x64/libsgx_uae_service.pc	<installdir>/package/pkgconfig/libsgx_uae_service.pc	0	main	STP
+<deliverydir>/build_infrastructure/linux/installer/common/sdk/pkgconfig/x64/libsgx_quote_ex.pc	<installdir>/package/pkgconfig/libsgx_quote_ex.pc	0	main	STP
+<deliverydir>/build_infrastructure/linux/installer/common/sdk/pkgconfig/x64/libsgx_urts.pc	<installdir>/package/pkgconfig/libsgx_urts.pc	0	main	STP

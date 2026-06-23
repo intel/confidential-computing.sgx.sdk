@@ -12,11 +12,6 @@ set -e
 script_dir="$( cd "$( dirname "$0" )" >> /dev/null 2>&1 && pwd )"
 sgx_repo="$script_dir/sgx"
 build_out="$script_dir/out"
-
-sdk_prefix="/linux-sgx/"
-sdk_install_path="/linux-sgx/sgxsdk"
-
-toolset_dir=""
 sdk_installer=""
 
 
@@ -28,10 +23,6 @@ clean_repo()
     fi
     if [ -f $sgx_repo/Makefile ]; then
         cd $sgx_repo/ && make clean
-    fi
-    # uninstall SDK installer
-    if [ -x "$sdk_install_path/uninstall.sh" ]; then
-        $sdk_install_path/uninstall.sh
     fi
     #rm -rf $build_out
     popd
@@ -55,7 +46,7 @@ build_sdk()
     local sdk_out="$build_out/sdk"
     pushd .
     cd $sgx_repo; make sdk_install_pkg
-    local installer=$(find $sgx_repo/linux/installer/bin -name "sgx_linux_x64_sdk*.bin")
+    local installer=$(find $sgx_repo/build_infrastructure/linux/installer/bin -name "sgx_linux_x64_sdk*.bin")
     if [ ! -d "$sdk_out" ]; then
         mkdir -p $sdk_out
     fi
@@ -65,40 +56,10 @@ build_sdk()
     sdk_installer="$installer"
 }
 
-build_ae()
+unsupported_ae_message()
 {
-    # Requires two input args:
-    #   $1: sdk installer path
-    if [ $# != 1 ]; then
-        echo "Invalid input parameter"
-        exit 1
-    fi
-
-    local sdk_installer="$1"
-    if [ ! -f "$sdk_installer" ]; then
-        echo "SDK installer is not found. $sdk_installer"
-        exit 1
-    fi
-    # Install sdk installer and source environment
-    $sdk_installer --prefix=$sdk_prefix
-    source $sdk_install_path/environment
-
-    pushd .
-    local ae_out="$build_out/ae"
-    mkdir -p $ae_out
-    cd $sgx_repo/external/dcap_source/ae/qae && make
-    cp libsgx_qae.so $ae_out
-    cd $sgx_repo/psw/ae/pce && make
-    cp pce.so $ae_out
-    cd $sgx_repo/external/dcap_source/ae/qe3/linux && make
-    cp qe3.so $ae_out
-    cd $sgx_repo/external/dcap_source/ae/id_enclave/linux && make
-    cp id_enclave.so $ae_out
-    cd $sgx_repo/external/dcap_source/ae/tdqe/linux && make
-    cp tdqe.so $ae_out
-    cd $sgx_repo/external/dcap_source/ae/QvE && make
-    cp qve.so $ae_out
-    popd
+    echo "ERROR: The PSW installer is no longer supported for this (SGX SDK's) script."
+    echo "       Please refer to https://github.com/intel/confidential-computing.sgx/blob/main/linux/installer/bin/build-installpkg.sh for the PSW installer script."
 }
 
 usage()
@@ -109,7 +70,7 @@ usage()
 
     Description:
         Automate the reproducible build in the container. The reproducibility TYPE
-        should be provied and could be one of [ all | sdk | ae | ipp ]
+        should be provided and could be one of [ all | sdk | ipp ]
     "
 }
 
@@ -118,7 +79,7 @@ usage()
 type="$1"
 if [ "$type" = "" ]; then
     echo "Invalid input parameter. Please input the reproducibility type.
-          Possible options: [ all | sdk | ae | ipp ]"
+          Possible options: [ all | sdk | ipp ]"
     exit 1
 elif [ ! -d "$sgx_repo" ]; then
     echo "No sgx source code."
@@ -131,13 +92,11 @@ case "$type" in
     "all")
         build_ipp
         build_sdk
-        build_ae $sdk_installer
-        echo "All the targets are built out and could be found under $build_out"
+        echo "All supported targets are built out and could be found under $build_out"
         ;;
     "ae")
-        sdk_installer=$(ls $script_dir/sgx_linux_x64_sdk_*.bin)
-        build_ae $sdk_installer
-        echo "The built out AEs could be found under $build_out/ae"
+        unsupported_ae_message
+        exit 1
         ;;
     "sdk")
         build_sdk

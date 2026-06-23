@@ -16,7 +16,7 @@ It only copies and lays out already-built artifacts. It does not compile anythin
 
   ```sh
   make preparation        # fetch submodules and prebuilts, apply patches
-  make -C psw/urts/linux  # builds libsgx_urts.so and libsgx_enclave_common.so
+  make enclave_runtime    # builds libsgx_urts.so and libsgx_enclave_common.so
   ```
 
   The developer headers under `common/inc` are part of the source tree (no build step).

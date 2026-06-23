@@ -6,16 +6,23 @@
 
 set -e
 
-SCRIPT_DIR=$(dirname "$0")
-ROOT_DIR="${SCRIPT_DIR}/../../../../"
-LINUX_INSTALLER_DIR="${ROOT_DIR}/linux/installer"
+SCRIPT_DIR="$(readlink -f "$(dirname "$0")")"
+ROOT_DIR="$(readlink -f "${SCRIPT_DIR}/../../../../..")"
+
+PKG_OUT_ROOT_DIR="${PKG_OUT_ROOT_DIR:-${ROOT_DIR}/build_infrastructure/linux/installer}"
+FLATTEN_PKG_OUT_DIR="${FLATTEN_PKG_OUT_DIR:-0}"
+RPM_OUT_DIR="${PKG_OUT_ROOT_DIR}/rpm$([ "$FLATTEN_PKG_OUT_DIR" = 0 ] && echo /libsgx-urts || true)"
+
+cd "${ROOT_DIR}" #for relative path resolution
+
+LINUX_INSTALLER_DIR="${ROOT_DIR}/build_infrastructure/linux/installer"
 LINUX_INSTALLER_COMMON_DIR="${LINUX_INSTALLER_DIR}/common"
 LINUX_INSTALLER_URTS_COMMON_DIR="${LINUX_INSTALLER_COMMON_DIR}/libsgx-urts"
 
 source ${LINUX_INSTALLER_URTS_COMMON_DIR}/installConfig
 
-SGX_VERSION=$(awk '/STRFILEVER/ {print $3}' ${ROOT_DIR}/common/inc/internal/se_version.h|sed 's/^\"\(.*\)\"$/\1/')
-RPM_BUILD_FOLDER=${URTS_PACKAGE_NAME}-${SGX_VERSION}
+ENCLAVE_RUNTIME_PKG_VERSION=${ENCLAVE_RUNTIME_VERSION:-$(awk '/#define STRFILEVER_DEFAULT/ {print $3}' ${ROOT_DIR}/common/inc/internal/se_version.h|sed 's/^\"\(.*\)\"$/\1/')}
+RPM_BUILD_FOLDER=${URTS_PACKAGE_NAME}-${ENCLAVE_RUNTIME_PKG_VERSION}
 
 main() {
     pre_build
@@ -32,9 +39,13 @@ pre_build() {
 }
 
 post_build() {
-    for FILE in $(find ${SCRIPT_DIR}/${RPM_BUILD_FOLDER} -name "*.rpm" 2> /dev/null); do
-        cp "${FILE}" ${SCRIPT_DIR}
-    done
+    # If PKG_OUT_ROOT_DIR is non-default, move the resulting packages to the target dir.
+    if [ "${SCRIPT_DIR}" != "$(readlink -f "${RPM_OUT_DIR}")" ]; then
+        mkdir -p "${RPM_OUT_DIR}"
+        for FILE in $(find ${SCRIPT_DIR}/${RPM_BUILD_FOLDER} -name "*.rpm" 2> /dev/null); do
+            mv "${FILE}" "${RPM_OUT_DIR}"
+        done
+    fi
     rm -fR ${SCRIPT_DIR}/${RPM_BUILD_FOLDER}
 }
 
@@ -42,7 +53,7 @@ update_version() {
     pushd ${SCRIPT_DIR}/${RPM_BUILD_FOLDER}
 
     # Replace placeholders in spec
-    sed -i "s/@version@/${SGX_VERSION}/" SPECS/${URTS_PACKAGE_NAME}.spec
+    sed -i "s/@version@/${ENCLAVE_RUNTIME_PKG_VERSION}/" SPECS/${URTS_PACKAGE_NAME}.spec
 
     # RPM %changelog requires English format "Day Mon DD YYYY"; use LC_ALL=C to force English locale
     BUILD_DATE=$(LC_ALL=C date +"%a %b %d %Y")

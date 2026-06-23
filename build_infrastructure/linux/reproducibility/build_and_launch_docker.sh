@@ -9,7 +9,7 @@
 # in the docker container.
 #
 # Usage:
-#     ./build_and_launch_docker.sh [ [ -d | --code-dir dir ] [ -t | --reproduce-type type ] | [ -i | --sdk-installer installer ] | [ -s | --sgx-src-dir src_dir ] [ -h | --help ] ]
+#     ./build_and_launch_docker.sh [ [ -d | --code-dir dir ] [ -t | --reproduce-type type ] | [ -s | --sgx-src-dir src_dir ] [ -h | --help ] ]
 #
 # Options:
 #     -d, --code-dir:
@@ -17,15 +17,12 @@
 #         not specified, will use the same directory as the script location.
 #
 #     -t, --reproduce-type:
-#         Specify the reproducibility type. Provided options: all|sdk|ae|ipp.
+#         Specify the reproducibility type. Provided options: all|sdk|ipp.
+#         Legacy option 'ae' is kept for CLI compatibility and exits with guidance.
 #         If one type is provided, the corresponding code will be prepared. And the correponding
 #         build steps will also be launched in the container automatically.
 #         If no type is provided, all the code will be prepared. And the build steps will
 #         be triggered in the container. Then you can choose to build what you want in the container.
-#
-#    -i, --sdk-installer:
-#         Specify the SDK installer used for AE reproducibility. If this option is not specified,
-#         script will download the default SDK installer.
 #
 #    -s, --sgx-src-dir:
 #         Specify the local sgx source path if you have pulled the sgx source code via `$git clone`
@@ -47,11 +44,7 @@ type="all"
 type_flag=0
 mount_dir="/linux-sgx"
 
-sdk_installer=""
 sgx_src=""
-
-default_sdk_installer=sgx_linux_x64_sdk_reproducible_2.28.100.0.bin
-default_sdk_installer_url=https://download.01.org/intel-sgx/sgx-linux/2.28/distro/nix_reproducibility/$default_sdk_installer
 
 
 usage()
@@ -61,22 +54,19 @@ usage()
     in the docker container.
 
     Usage:
-        $0 [ [ -d | --code-dir dir ] [ -t | --reproduce-type type ] | [ -i | --sdk-installer installer ] | [ -s | --sgx-src-dir src_dir ] [ -h | --help ] ]
+        $0 [ [ -d | --code-dir dir ] [ -t | --reproduce-type type ] | [ -s | --sgx-src-dir src_dir ] [ -h | --help ] ]
 
     Options:
         -d, --code-dir:
             Specify the directory you want to prepare the code and share to the reproducible container.
             If this option is not specified, will use the same directory as the script location.
         -t, --reproduce-type:
-            Specify the reproducibility type. Provided options: all|sdk|ae|ipp.
+            Specify the reproducibility type. Provided options: all|sdk|ipp.
+            Legacy option 'ae' is kept for CLI compatibility and exits with guidance.
             If one type is provided, the corresponding code will be prepared. And the correponding
             build steps will also be executed in the container automatically.
             If no type is provided, all the code will be prepared. And the build steps will not
             be triggered in the container. Then you can choose to build what you want in the container.
-        -i, --sdk-installer:
-            Specify the SDK installer used for AE reproducibility.
-            If this option is not provided, script will choose the default SDK installer to build AEs.
-            Only valid when the reproduce type is 'ae'.
         -s, --sgx-src-dir:
             Specify the local sgx source path if you have pulled the sgx source code via \`\$git clone\`
             or by other ways.
@@ -105,15 +95,6 @@ parse_cmd()
                 usage
                 exit
                 ;;
-             -i | --sdk-installer ) shift
-                sdk_installer="$1"
-                if [ ! -f "$sdk_installer" ]; then
-                    echo "The $sdk_installer doesn't exist."
-                    usage
-                    exit 1
-                fi
-                sdk_installer="$(realpath $sdk_installer)"
-                ;;
             -s | --sgx-src-dir) shift
                 sgx_src="$1"
                 if [ ! -d "$sgx_src" ]; then
@@ -129,11 +110,6 @@ parse_cmd()
         esac
         shift
     done
-    if [ "$type" != "ae" ] && [ $type_flag == 1 ] && [ "$sdk_installer" != "" ]; then
-        echo -e "\n   ERROR: Option '--sdk-installer' is valid only if '--reproduce-type' is 'ae'."
-        usage
-        exit 1
-    fi
     mkdir -p "$code_dir" | exit
     code_dir="$(realpath $code_dir)"
     sgx_repo="$code_dir/sgx"
@@ -152,7 +128,7 @@ prepare_sgx_src()
     if [ "$sgx_src" != "" ]; then
         mkdir -p "$sgx_repo" && cp -a "$sgx_src/." "$sgx_repo"
     else
-        git clone -b sgx_2.28_reproducible https://github.com/intel/confidential-computing.sgx.git $sgx_repo
+        git clone -b sgx_2.30 https://github.com/intel/confidential-computing.sgx.sdk.git "$sgx_repo"
     fi
 
     cd "$sgx_repo" && make preparation
@@ -160,16 +136,10 @@ prepare_sgx_src()
 
 }
 
-prepare_sdk_installer()
+unsupported_ae_message()
 {
-    # Used for 'ae' type repreducibility.
-    # If user prepares the sdk installer, we copy it to the right place
-    # Otherwise, we download one from 01.org
-    if [ "$sdk_installer" != "" ]; then
-        chmod +x "$sdk_installer" && cp "$sdk_installer" "$code_dir"
-    else
-        cd $code_dir && wget $default_sdk_installer_url && chmod +x $default_sdk_installer && cd -
-    fi
+    echo "ERROR: The SDK installer is no longer supported for this (SGX SDK's) script."
+    echo "       Please refer to https://github.com/intel/confidential-computing.sgx/blob/main/linux/installer/bin/build-installpkg.sh for the PSW installer script."
 }
 
 generate_cmd_script()
@@ -200,8 +170,8 @@ case $type in
         prepare_sgx_src
         ;;
     "ae")
-        prepare_sgx_src
-        prepare_sdk_installer
+        unsupported_ae_message
+        exit 1
         ;;
     "ipp")
         prepare_sgx_src

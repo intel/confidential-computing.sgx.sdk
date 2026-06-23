@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
-top_dir=$(dirname "$0")
+top_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 out_dir=$top_dir
 dcap_version=1.27
 prebuilt_file_name=prebuilt_dcap_${dcap_version}.tar.gz

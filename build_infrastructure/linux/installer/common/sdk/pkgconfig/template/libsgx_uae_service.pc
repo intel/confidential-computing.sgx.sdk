@@ -4,7 +4,7 @@ libdir=${prefix}/@LIB_FOLDER_NAME@
 
 Name: libsgx_uae_service
 Description: SGX uAE service library
-Version: @SGX_VERSION@
+Version: @SDK_PKG_VERSION@
 Cflags: -I${includedir}
 Libs: -L${libdir} -lsgx_uae_service
 Libs.private: -lsgx_urts

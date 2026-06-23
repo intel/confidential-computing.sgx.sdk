@@ -24,6 +24,15 @@ ifneq ($(words $(subst :, ,$(ROOT_DIR))), 1)
   $(error main directory cannot contain spaces nor colons)
 endif
 
+# Packaging output root (contains bin/, deb/, rpm/ artifact dirs).
+# Override when vendored, e.g. PKG_OUT_ROOT_DIR=$(ROOT_DIR)/../linux/installer
+PKG_OUT_ROOT_DIR       ?= $(ROOT_DIR)/build_infrastructure/linux/installer
+export PKG_OUT_ROOT_DIR
+# When FLATTEN_PKG_OUT_DIR=1, packages will be placed directly in PKG_OUT_ROOT_DIR/<type> (e.g. deb/, rpm/, bin/)
+# otherwise they will be placed in subdirs by component (e.g. deb/libsgx-enclave-common/)
+FLATTEN_PKG_OUT_DIR    ?= 0
+export FLATTEN_PKG_OUT_DIR
+
 
 #--------------------------------------------------------------------------------------
 # Function: get_distr_info
@@ -35,12 +44,45 @@ get_distr_info = $(patsubst "%",%,$(shell grep $(1) /etc/os-release 2> /dev/null
 DISTR_ID := $(call get_distr_info, '^ID=')
 DISTR_VER := $(call get_distr_info, '^VERSION_ID=')
 
+# Release packaging format selection (used by top-level "release" target)
+# Override with RELEASE_PKG_FORMAT=deb|rpm; otherwise auto-detect.
+# NOTE: Auto-detection and validation only trigger when building packaging targets (deb_*, rpm_*, release).
+# This avoids parse-time errors on clean/distclean and other non-packaging targets.
+RELEASE_PKG_FORMAT ?= auto
+
+DEB_LIKE_IDS := ubuntu debian
+RPM_LIKE_IDS := rhel centos fedora rocky almalinux amzn ol sles opensuse opensuse-leap suse
+OS_RELEASE_ID_LIKE := $(call get_distr_info, '^ID_LIKE=')
+
+# Check if any packaging target is being built
+_NEEDS_PKG_FORMAT := $(if $(filter release deb% rpm%,$(MAKECMDGOALS)),yes,)
+
+# Only validate/auto-detect RELEASE_PKG_FORMAT when packaging targets are needed
+ifeq ($(_NEEDS_PKG_FORMAT),yes)
+ifeq ($(RELEASE_PKG_FORMAT),auto)
+# Auto-detect if not explicitly set
+PKG_OS_HINT := $(if $(filter $(DISTR_ID) $(OS_RELEASE_ID_LIKE),$(DEB_LIKE_IDS)),deb,$(if $(filter $(DISTR_ID) $(OS_RELEASE_ID_LIKE),$(RPM_LIKE_IDS)),rpm,))
+PKG_DB_HINT := $(shell if [ -e /var/lib/dpkg/status ] && [ ! -d /var/lib/rpm ] && [ ! -d /usr/lib/sysimage/rpm ]; then echo deb; elif { [ -d /var/lib/rpm ] || [ -d /usr/lib/sysimage/rpm ]; } && [ ! -e /var/lib/dpkg/status ]; then echo rpm; fi)
+PKG_CMD_HINT := $(shell if command -v dpkg >/dev/null 2>&1 && ! command -v rpm >/dev/null 2>&1; then echo deb; elif command -v rpm >/dev/null 2>&1 && ! command -v dpkg >/dev/null 2>&1; then echo rpm; fi)
+RELEASE_PKG_FORMAT := $(firstword $(PKG_OS_HINT) $(PKG_DB_HINT) $(PKG_CMD_HINT))
+ifeq ($(RELEASE_PKG_FORMAT),)
+$(error Unable to auto-detect packaging format (DISTR_ID='$(DISTR_ID)', ID_LIKE='$(OS_RELEASE_ID_LIKE)'). Set RELEASE_PKG_FORMAT=deb|rpm)
+endif
+endif
+
+# Validate format is one of: auto, deb, rpm
+ifneq (,$(filter $(RELEASE_PKG_FORMAT),auto deb rpm))
+else
+$(error RELEASE_PKG_FORMAT must be one of: auto, deb, rpm)
+endif
+endif
+
 #--------------------------------------------------------------------------------------
 # Function: get_full_version
 # Arguments: 1: the version name of library
 # Returns: Return the full version.
 #---------------------------------------------------------------------------------------
-get_full_version = $(shell awk '$$2 ~ /$1/ { print substr($$3, 2, length($$3) - 2); }' $(COMMON_DIR)/inc/internal/se_version.h)
+get_full_version = $(shell awk '$$2 ~ /$1/ { print substr($$3, 2, length($$3) - 2); }' $(SE_VERSION_FILE))
 
 #--------------------------------------------------------------------------------------
 # Function: get_major_version
@@ -49,13 +91,40 @@ get_full_version = $(shell awk '$$2 ~ /$1/ { print substr($$3, 2, length($$3) - 
 #---------------------------------------------------------------------------------------
 get_major_version = $(word 1,$(subst ., ,$(call get_full_version,$1)))
 
-COMMON_DIR            := $(ROOT_DIR)/common
-LINUX_EXTERNAL_DIR    := $(ROOT_DIR)/external
-LINUX_PSW_DIR         := $(ROOT_DIR)/psw
-LINUX_SDK_DIR         := $(ROOT_DIR)/sdk
-LINUX_UNITTESTS       := $(ROOT_DIR)/unittests
-DCAP_DIR              := $(LINUX_EXTERNAL_DIR)/dcap_source
-LIBUNWIND_DIR         := $(ROOT_DIR)/sdk/cpprt/linux/libunwind
+COMMON_DIR                := $(ROOT_DIR)/common
+SE_VERSION_FILE           := $(COMMON_DIR)/inc/internal/se_version.h
+LINUX_EXTERNAL_DIR        := $(ROOT_DIR)/external
+LINUX_ENCLAVE_RUNTIME_DIR := $(ROOT_DIR)/enclave_runtime
+LINUX_SDK_DIR             := $(ROOT_DIR)/sdk
+LIBUNWIND_DIR             := $(ROOT_DIR)/sdk/cpprt/linux/libunwind
+SDK_VERSION_DEFAULT       := $(call get_full_version,STRFILEVER_DEFAULT)
+
+# Set repo-wide SGX_SDK_VERSION (all components within this repo)with default fallback
+SGX_SDK_VERSION           ?= $(SDK_VERSION_DEFAULT)
+# Version override specifically for components which are part of the SDK package (incl. libsgx_headers)
+SDK_VERSION               ?= $(SGX_SDK_VERSION)
+# Version override specifically for components which are part of the Enclave Runtime package (incl. libsgx_enclave_common, libsgx_urts)
+ENCLAVE_RUNTIME_VERSION   ?= $(SGX_SDK_VERSION)
+
+# Export globally for sub-makes/shell scripts
+export SGX_SDK_VERSION
+export SDK_VERSION
+export ENCLAVE_RUNTIME_VERSION
+
+# Limitation: some targets currently embed version info from SE_VERSION_FILE at build time,
+# while installer/deb/rpm packaging flows consume SDK_VERSION or ENCLAVE_RUNTIME_VERSION
+# (with SGX_SDK_VERSION retained as a backward-compatible fallback).
+# Until we add a dedicated target that generates the version file from a template, keep
+# mismatch as warning-only and continue the build.
+ifneq ($(SGX_SDK_VERSION),$(SDK_VERSION_DEFAULT))
+$(warning Non-fatal version mismatch: requested SGX_SDK_VERSION=$(SGX_SDK_VERSION), but $(SE_VERSION_FILE) defines $(SDK_VERSION_DEFAULT). This legacy fallback may still affect package versions when SDK_VERSION/ENCLAVE_RUNTIME_VERSION are not set. Continuing.)
+endif
+ifneq ($(SDK_VERSION),$(SDK_VERSION_DEFAULT))
+$(warning Non-fatal version mismatch: requested SDK_VERSION=$(SDK_VERSION), but $(SE_VERSION_FILE) defines $(SDK_VERSION_DEFAULT). SDK package metadata/artifacts use SDK_VERSION, while some compiled outputs may still embed the header version. Continuing.)
+endif
+ifneq ($(ENCLAVE_RUNTIME_VERSION),$(SDK_VERSION_DEFAULT))
+$(warning Non-fatal version mismatch: requested ENCLAVE_RUNTIME_VERSION=$(ENCLAVE_RUNTIME_VERSION), but $(SE_VERSION_FILE) defines $(SDK_VERSION_DEFAULT). Enclave Runtime package metadata/artifacts use ENCLAVE_RUNTIME_VERSION, while some compiled outputs may still embed the header version. Continuing.)
+endif
 
 CP    := cp -f
 LN    := ln -sf

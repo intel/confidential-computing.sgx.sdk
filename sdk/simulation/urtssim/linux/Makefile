@@ -21,26 +21,26 @@ PREBUILT_OPENSSL_DIR := $(ROOT_DIR)/prebuilt/dcap/openssl
 CRYPTO_LIB := -L$(PREBUILT_OPENSSL_DIR)/lib/linux64 -lcrypto
 
 CPPFLAGS += $(ADDED_INC) #for ubuntu 11 and later version
-CPPFLAGS += -I$(COMMON_DIR)/inc                \
-            -I$(COMMON_DIR)/inc/internal/linux \
-            -I$(LINUX_PSW_DIR)/enclave_common  \
-            -I$(LINUX_PSW_DIR)/urts            \
-            -I$(LINUX_PSW_DIR)/urts/parser     \
-            -I$(VTUNE_DIR)/include \
-            -I$(VTUNE_DIR)/sdk/src/ittnotify \
+CPPFLAGS += -I$(COMMON_DIR)/inc                            \
+            -I$(COMMON_DIR)/inc/internal/linux             \
+            -I$(LINUX_ENCLAVE_RUNTIME_DIR)/enclave_common  \
+            -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts            \
+            -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser     \
+            -I$(VTUNE_DIR)/include                         \
+            -I$(VTUNE_DIR)/sdk/src/ittnotify               \
             -I$(PREBUILT_OPENSSL_DIR)/inc
 
-CPPFLAGS += -I$(COMMON_DIR)/inc/internal      \
-            -I$(LINUX_PSW_DIR)/urts/linux     \
-            -I$(SIM_DIR)/tinst                \
+CPPFLAGS += -I$(COMMON_DIR)/inc/internal                  \
+            -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/linux     \
+            -I$(SIM_DIR)/tinst                            \
             -I$(SIM_DIR)/uinst
 
-DIR1 := $(LINUX_PSW_DIR)/urts/
-DIR2 := $(LINUX_PSW_DIR)/urts/linux/
-DIR3 := $(LINUX_PSW_DIR)/urts/parser/
+DIR1 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/
+DIR2 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/linux/
+DIR3 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser/
 DIR4 := ../
-DIR5 := $(LINUX_PSW_DIR)/../common/src/linux
-DIR6 := $(LINUX_PSW_DIR)/../common/src
+DIR5 := $(LINUX_ENCLAVE_RUNTIME_DIR)/../common/src/linux
+DIR6 := $(LINUX_ENCLAVE_RUNTIME_DIR)/../common/src
 
 
 LDFLAGS += -L$(COMMON_DIR)/se_wrapper \
@@ -97,7 +97,7 @@ vpath %.cpp .:$(DIR1):$(DIR2):$(DIR3):$(DIR4):$(DIR6)
 vpath %.S   .:$(DIR2):$(DIR5)
 vpath %.c .:$(DIR6)
 
-LDFLAGS += $(COMMON_LDFLAGS) -Wl,--version-script=$(LINUX_PSW_DIR)/urts/linux/urts.lds
+LDFLAGS += $(COMMON_LDFLAGS) -Wl,--version-script=$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/linux/urts.lds
 
 LIBURTSSIM_SHARED := libsgx_urts_sim.so
 LIBURTS_DEPLOY := libsgx_urts_deploy.so

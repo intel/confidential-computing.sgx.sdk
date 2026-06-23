@@ -22,15 +22,15 @@ CFLAGS += $(ADDED_INC)
 INC += -I$(SGX_HEADER_DIR)                \
        -I$(COMMON_DIR)/inc/internal       \
        -I$(COMMON_DIR)/inc/internal/linux \
-       -I$(LINUX_PSW_DIR)/urts/           \
-       -I$(LINUX_PSW_DIR)/urts/linux      \
-       -I$(LINUX_PSW_DIR)/enclave_common
+       -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/           \
+       -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/linux      \
+       -I$(LINUX_ENCLAVE_RUNTIME_DIR)/enclave_common
 
 LDFLAGS := -lwrapper -ldl
 LDFLAGS += $(COMMON_LDFLAGS) -Wl,--version-script=sgx_enclave_common.lds -Wl,--gc-sections
 
-DIR1 := $(LINUX_PSW_DIR)/enclave_common
-DIR2 := $(LINUX_PSW_DIR)/urts/linux
+DIR1 := $(LINUX_ENCLAVE_RUNTIME_DIR)/enclave_common
+DIR2 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/linux
 
 LIB += -L$(COMMON_DIR)/se_wrapper
 

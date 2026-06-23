@@ -24,10 +24,10 @@ CRYPTO_LIB := -L$(PREBUILT_OPENSSL_DIR)/lib/linux64 -lcrypto
 INC += -I$(SGX_HEADER_DIR)                \
        -I$(COMMON_DIR)/inc/internal       \
        -I$(COMMON_DIR)/inc/internal/linux \
-       -I$(LINUX_PSW_DIR)/enclave_common  \
-       -I$(LINUX_PSW_DIR)/urts/           \
-       -I$(LINUX_PSW_DIR)/urts/linux      \
-       -I$(LINUX_PSW_DIR)/urts/parser     \
+       -I$(LINUX_ENCLAVE_RUNTIME_DIR)/enclave_common  \
+       -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/           \
+       -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/linux      \
+       -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser     \
        -I$(VTUNE_DIR)/include \
        -I$(VTUNE_DIR)/sdk/src/ittnotify   \
        -I$(PREBUILT_OPENSSL_DIR)/inc
@@ -41,12 +41,12 @@ INTERNAL_LDFLAGS += -L$(VTUNE_DIR)/sdk/src/ittnotify -littnotify -ldl $(CRYPTO_L
 LDFLAGS += -Wl,--version-script=urts.lds -Wl,--gc-sections
 INTERNAL_LDFLAGS += -Wl,--version-script=urts_internal.lds -Wl,--gc-sections
 
-DIR1 := $(LINUX_PSW_DIR)/urts/linux
-DIR2 := $(LINUX_PSW_DIR)/urts
-DIR3 := $(LINUX_PSW_DIR)/urts/parser
-DIR4 := $(LINUX_PSW_DIR)/urts/parser/linux
-DIR5 := $(LINUX_PSW_DIR)/../common/src/linux
-DIR6 := $(LINUX_PSW_DIR)/../common/src
+DIR1 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/linux
+DIR2 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts
+DIR3 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser
+DIR4 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser/linux
+DIR5 := $(LINUX_ENCLAVE_RUNTIME_DIR)/../common/src/linux
+DIR6 := $(LINUX_ENCLAVE_RUNTIME_DIR)/../common/src
 
 LIB += -L$(COMMON_DIR)/se_wrapper \
        -L$(SGX_LIB_DIR)
@@ -129,7 +129,7 @@ $(LIBWRAPPER):
 	$(MAKE) -C $(COMMON_DIR)/se_wrapper/
 
 $(LIBSGX_ENCLAVE_COMMON):
-	$(MAKE) -C $(LINUX_PSW_DIR)/enclave_common/
+	$(MAKE) -C $(LINUX_ENCLAVE_RUNTIME_DIR)/enclave_common/
 
 .PHONY: ittnotify
 ittnotify:
@@ -145,6 +145,6 @@ clean::
 		$(BUILD_DIR)/$(LIBURTS_FULL)      \
 		$(BUILD_DIR)/$(LIBURTS_MAJOR)     \
 		$(BUILD_DIR)/$(LIBURTS_INTERNAL)
-	$(MAKE) -C $(COMMON_DIR)/se_wrapper/    clean
-	$(MAKE) -C $(LINUX_PSW_DIR)/enclave_common/ clean
-	$(MAKE) -C $(VTUNE_DIR)/sdk/src/ittnotify   clean
+	$(MAKE) -C $(COMMON_DIR)/se_wrapper/                    clean
+	$(MAKE) -C $(LINUX_ENCLAVE_RUNTIME_DIR)/enclave_common/ clean
+	$(MAKE) -C $(VTUNE_DIR)/sdk/src/ittnotify               clean

@@ -14,7 +14,7 @@ Files in this directory demonstrate how to build and install the SGX SDK and PSW
    ```
 
 ### Run with Docker Compose
-This will start AESM and an SGX sample on one terminal using docker-compose.
+This will start an SGX sample on one terminal using docker-compose.
 
 ```bash
 ./build_compose_run.sh
@@ -22,14 +22,17 @@ This will start AESM and an SGX sample on one terminal using docker-compose.
 
 ## Dockerfile
 
-The Dockerfile specifies 3 image build targets:
+The Dockerfile specifies 2 image build targets:
 1. builder: Builds PSW and SDK debian installers from source.
-2. aesm_deb: Takes the PSW debian installer from builder to install and run the AESM daemon.
-3. sample_deb: Takes the SDK installer and the PSW debian installer from builder to install. Then builds and runs an SGX SDK sample (`SAMPLE_NAME`, default `SampleEnclave`).
+2. sample_deb: Takes the SDK installer and the PSW debian installer from builder to install. Then builds and runs an SGX SDK sample (`SAMPLE_NAME`, default `SampleEnclave`).
 
-- [build_and_run_aesm_deb_docker.sh](./build_and_run_aesm_deb_docker.sh): Shows how to build and run the AESM image in Docker. This will start the AESM service listening to a named socket, located in /var/run/aesmd in the container and mounted in Docker volume aesmd-socket.
+
 - [build_and_run_sample_deb_docker.sh](./build_and_run_sample_deb_docker.sh): Shows how to build and run an SGX SDK sample inside a Docker container with a locally built SGX sample image.
-- [build_compose_run.sh](./build_compose_run.sh): Shows how to use docker-compose to build and run both AESM and sample containers.
+- [build_compose_run.sh](./build_compose_run.sh): Shows how to use docker-compose to build and run sample container.
+
+>[!NOTE]
+> Samples in this repo are standalone (either not using quoting services or using in-proc DCAP QE3) and do NOT require AESM.
+> Legacy non-FLC driver stack (requiring AESM and the Intel LE) is no longer supported on new codebase (look up old SGX releases if you need to build and run such samples)
 
 ## SGX driver and device nodes
 
@@ -45,13 +48,27 @@ The sample scripts and Compose files target these device nodes.
 
 **Note**: The pre-FLC legacy Launch Enclave (LE)-based driver (`/dev/isgx`) is **not** supported here — code support for it was removed in SGX 2.28. To target it, use an older release branch.
 
-## Experimental: Build and run TDX QGS in docker container
-###  Prerequisites
-Besides the [Prerequisites](#prerequisites), you need to have Docker Engine >= 20.10 to support `host-gateway` used in build_and_run_qgs_docker.sh.
+## Experimental: CentOS
 
-### Run with Docker directly
-This will start QGS on one terminal directly.
+This path is experimental and currently focused on building and running SGX SDK
+sample applications on CentOS Stream 9.
+
+Prerequisites are the same as above (`make preparation`, etc.)
+
+To build the CentOS sample target from the CentOS Dockerfile:
+
 ```bash
-./build_and_run_qgs_docker.sh
+docker build --target sample_rpm -t sgx_sample_centos -f ./centos-samples.dockerfile ../../
 ```
-It will listen on docker volume /var/lib/docker/volumes/qgs-socket. In order to connect to QGS in this configuration, you need to run QEMU with `quote-generation-service=unix:/var/lib/docker/volumes/qgs-socket/_data/qgs.socket` option and use TDVMCall mode(which is the default mode if you installed with rpm/deb package) to get quote within TD guest.
+
+Run the sample container:
+
+```bash
+docker run --rm -it --device=/dev/sgx_enclave sgx_sample_centos
+```
+
+Notes:
+
+- The CentOS flow mirrors the main Docker flow: it builds package artifacts and installs them manually inside the image.
+- `SAMPLE_NAME` is supported as a build argument (default: `SampleEnclave`).
+- `SampleAttestedTLS` is currently out of scope for this lightweight experimental flow because it requires a fuller DCAP quoting setup.

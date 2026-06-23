@@ -7,16 +7,23 @@
 
 set -e
 
-SCRIPT_DIR=$(dirname "$0")
-ROOT_DIR="${SCRIPT_DIR}/../../../../"
-LINUX_INSTALLER_DIR="${ROOT_DIR}/linux/installer"
+SCRIPT_DIR="$(readlink -f "$(dirname "$0")")"
+ROOT_DIR="$(readlink -f "${SCRIPT_DIR}/../../../../..")"
+
+PKG_OUT_ROOT_DIR="${PKG_OUT_ROOT_DIR:-${ROOT_DIR}/build_infrastructure/linux/installer}"
+FLATTEN_PKG_OUT_DIR="${FLATTEN_PKG_OUT_DIR:-0}"
+RPM_OUT_DIR="${PKG_OUT_ROOT_DIR}/rpm$([ "$FLATTEN_PKG_OUT_DIR" = 0 ] && echo /libsgx-enclave-common || true)"
+
+cd "${ROOT_DIR}" #for relative path resolution
+
+LINUX_INSTALLER_DIR="${ROOT_DIR}/build_infrastructure/linux/installer"
 LINUX_INSTALLER_COMMON_DIR="${LINUX_INSTALLER_DIR}/common"
 LINUX_INSTALLER_COMMON_ENCLAVE_COMMON_DIR="${LINUX_INSTALLER_COMMON_DIR}/libsgx-enclave-common"
 
 source ${LINUX_INSTALLER_COMMON_ENCLAVE_COMMON_DIR}/installConfig
 
-SGX_VERSION=$(awk '/STRFILEVER/ {print $3}' ${ROOT_DIR}/common/inc/internal/se_version.h|sed 's/^\"\(.*\)\"$/\1/')
-RPM_BUILD_FOLDER=${ENCLAVE_COMMON_PACKAGE_NAME}-${SGX_VERSION}
+ENCLAVE_RUNTIME_PKG_VERSION=${ENCLAVE_RUNTIME_VERSION:-$(awk '/#define STRFILEVER_DEFAULT/ {print $3}' ${ROOT_DIR}/common/inc/internal/se_version.h|sed 's/^\"\(.*\)\"$/\1/')}
+RPM_BUILD_FOLDER=${ENCLAVE_COMMON_PACKAGE_NAME}-${ENCLAVE_RUNTIME_PKG_VERSION}
 
 main() {
     pre_build
@@ -33,9 +40,13 @@ pre_build() {
 }
 
 post_build() {
-    for FILE in $(find ${SCRIPT_DIR}/${RPM_BUILD_FOLDER} -name "*.rpm" 2> /dev/null); do
-        cp "${FILE}" ${SCRIPT_DIR}
-    done
+    # If PKG_OUT_ROOT_DIR is non-default, move the resulting packages to the target dir.
+    if [ "${SCRIPT_DIR}" != "$(readlink -f "${RPM_OUT_DIR}")" ]; then
+        mkdir -p "${RPM_OUT_DIR}"
+        for FILE in $(find ${SCRIPT_DIR}/${RPM_BUILD_FOLDER} -name "*.rpm" 2> /dev/null); do
+            mv "${FILE}" "${RPM_OUT_DIR}"
+        done
+    fi
     rm -fR ${SCRIPT_DIR}/${RPM_BUILD_FOLDER}
 }
 
@@ -45,7 +56,7 @@ update_spec() {
     cur_version=$(echo -e "${rpm_version}\n${min_version}" | sort -V | head -n 1)
 
     pushd ${SCRIPT_DIR}/${RPM_BUILD_FOLDER}
-    sed -i "s/@version@/${SGX_VERSION}/" SPECS/${ENCLAVE_COMMON_PACKAGE_NAME}.spec
+    sed -i "s/@version@/${ENCLAVE_RUNTIME_PKG_VERSION}/" SPECS/${ENCLAVE_COMMON_PACKAGE_NAME}.spec
     if [ "${min_version}" != "${cur_version}" ]; then
         sed -i "s/^Recommends:/Requires:  /" SPECS/${ENCLAVE_COMMON_PACKAGE_NAME}.spec
     fi

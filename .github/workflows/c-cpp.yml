@@ -57,7 +57,7 @@ jobs:
       run: |
         set -euo pipefail
         
-        SRC=$(ls -1 linux/installer/bin/sgx_linux_x64_sdk_*.bin | head -n 1)
+        SRC=$(ls -1 build_infrastructure/linux/installer/bin/sgx_linux_x64_sdk_*.bin | head -n 1)
         [[ -n "${SRC:-}" ]] || { echo "No SDK installer found in build outputs"; exit 1; }
 
         mv -v "$SRC" "${SRC%.bin}_ci-build-${GITHUB_RUN_ID}_NON-PROD.bin"
@@ -74,7 +74,7 @@ jobs:
            echo "       It is intended for build pipeline testing only, not for production use or external distribution."
            echo "       For official Intel(R) SGX SDK releases, visit: https://download.01.org/intel-sgx/"
            echo ""
-        } > linux/installer/bin/DISCLAIMER.txt
+        } > build_infrastructure/linux/installer/bin/DISCLAIMER.txt
 
         echo "⚠️ This CI workflow is only smoke testing the build pipeline; artifact outputs are not production-ready." >> "$GITHUB_STEP_SUMMARY"
 
@@ -83,7 +83,7 @@ jobs:
       with:
         name: sdk_installer-ci-preview
         path: |
-           linux/installer/bin/sgx_linux_x64_sdk_*.bin
-           linux/installer/bin/DISCLAIMER.txt
+           build_infrastructure/linux/installer/bin/sgx_linux_x64_sdk_*.bin
+           build_infrastructure/linux/installer/bin/DISCLAIMER.txt
         if-no-files-found: error
         retention-days: 3

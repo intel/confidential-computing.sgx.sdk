@@ -33,9 +33,16 @@
 
 set -e
 
-SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR="$(readlink -f "$(dirname "$0")")"
+ROOT_DIR="$(readlink -f "${SCRIPT_DIR}/../../../../..")"
+
+cd "${ROOT_DIR}" # for relative path resolution
+
+PKG_OUT_ROOT_DIR="${PKG_OUT_ROOT_DIR:-${ROOT_DIR}/build_infrastructure/linux/installer}"
+RPM_OUT_DIR="${PKG_OUT_ROOT_DIR}/rpm"
 COMMON_DIR="${SCRIPT_DIR}/../../common/libsgx-urts"
 
 rm -f ${SCRIPT_DIR}/libsgx-urts*.rpm
+find "${RPM_OUT_DIR}" -type f -name "libsgx-urts*.rpm" -delete 2>/dev/null || true
 rm -f ${COMMON_DIR}/gen_source.py
 rm -rf ${COMMON_DIR}/output

@@ -1,40 +1,21 @@
 #!/usr/bin/env bash
 #
-# Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in
-#     the documentation and/or other materials provided with the
-#     distribution.
-#   * Neither the name of Intel Corporation nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+# Copyright(c) 2011-2026 Intel Corporation
+# SPDX-License-Identifier: BSD-3-Clause
 #
 
 set -e
 
-SCRIPT_DIR=$(dirname "$0")
-ROOT_DIR="${SCRIPT_DIR}/../../../../"
-LINUX_INSTALLER_DIR="${ROOT_DIR}/linux/installer"
+SCRIPT_DIR="$(readlink -f "$(dirname "$0")")"
+ROOT_DIR="$(readlink -f "${SCRIPT_DIR}/../../../../..")"
+
+PKG_OUT_ROOT_DIR="${PKG_OUT_ROOT_DIR:-${ROOT_DIR}/build_infrastructure/linux/installer}"
+FLATTEN_PKG_OUT_DIR="${FLATTEN_PKG_OUT_DIR:-0}"
+RPM_OUT_DIR="${PKG_OUT_ROOT_DIR}/rpm$([ "$FLATTEN_PKG_OUT_DIR" = 0 ] && echo /sdk || true)"
+
+cd "${ROOT_DIR}" #for relative path resolution
+
+LINUX_INSTALLER_DIR="${ROOT_DIR}/build_infrastructure/linux/installer"
 LINUX_INSTALLER_COMMON_DIR="${LINUX_INSTALLER_DIR}/common"
 LINUX_INSTALLER_COMMON_SDK_DIR="${LINUX_INSTALLER_COMMON_DIR}/sdk"
 LINUX_OS_ID=$(grep "^ID=" /usr/lib/os-release 2> /dev/null | awk -F'=' '{print $2}')
@@ -47,8 +28,8 @@ if [ "${LINUX_OS_ID}" = "clear-linux-os" ]; then
     RPM_HELER_COMMAND="echo"
 fi
 
-SGX_VERSION=$(awk '/STRFILEVER/ {print $3}' ${ROOT_DIR}/common/inc/internal/se_version.h|sed 's/^\"\(.*\)\"$/\1/')
-RPM_BUILD_FOLDER=${SDK_PKG_NAME}-${SGX_VERSION}
+SDK_PKG_VERSION=${SDK_VERSION:-$(awk '/#define STRFILEVER_DEFAULT/ {print $3}' ${ROOT_DIR}/common/inc/internal/se_version.h|sed 's/^\"\(.*\)\"$/\1/')}
+RPM_BUILD_FOLDER=${SDK_PKG_NAME}-${SDK_PKG_VERSION}
 
 main() {
     pre_build
@@ -65,15 +46,19 @@ pre_build() {
 }
 
 post_build() {
-    for FILE in $(find ${SCRIPT_DIR}/${RPM_BUILD_FOLDER} -name "*.rpm" 2> /dev/null); do
-        cp "${FILE}" ${SCRIPT_DIR}
-    done
+    # If PKG_OUT_ROOT_DIR is non-default, move the resulting packages to the target dir.
+    if [ "${SCRIPT_DIR}" != "$(readlink -f "${RPM_OUT_DIR}")" ]; then
+        mkdir -p "${RPM_OUT_DIR}"
+        for FILE in $(find ${SCRIPT_DIR}/${RPM_BUILD_FOLDER} -name "*.rpm" 2> /dev/null); do
+            mv "${FILE}" "${RPM_OUT_DIR}"
+        done
+    fi
     rm -fR ${SCRIPT_DIR}/${RPM_BUILD_FOLDER}
 }
 
 update_spec() {
     pushd ${SCRIPT_DIR}/${RPM_BUILD_FOLDER}
-    sed -i "s#@version@#${SGX_VERSION}#" SPECS/${SDK_PKG_NAME}.spec
+    sed -i "s#@version@#${SDK_PKG_VERSION}#" SPECS/${SDK_PKG_NAME}.spec
     
     # RPM %changelog requires English format "Day Mon DD YYYY"; use LC_ALL=C to force English locale
     BUILD_DATE=$(LC_ALL=C date +"%a %b %d %Y")

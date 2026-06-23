@@ -7,10 +7,9 @@ In order to reproduce the enclave build, there are three requirements:1. stable 
 ## Files
 --------
  - The [Dockerfile](./Dockerfile) is provided to build a docker image with NIX environment for reproducible build.
- - The script [build_and_launch_docker.sh](./build_and_launch_docker.sh) is the interface to automate the reproducibility process for Intel(R) SGX. You can directly run this script in the host machine to verify the reproducibility. Currently below five reproducible types are supported:   
+ - The script [build_and_launch_docker.sh](./build_and_launch_docker.sh) is the interface to automate the reproducibility process for Intel(R) SGX. You can directly run this script in the host machine to verify the reproducibility. Currently below reproducible types are supported:   
     * sdk: specify this type if you want to verify the reproducibility for Intel(R) SGX SDK. The script will prepare the SDK code in the host machine and trigger SDK build in the launched container.      
     * ipp: specify this type if you want to verify the reproducibility for the prebuilt IPP crypto. The script will prepare the IPP crypto code in the host machine and trigger the build in the launched container.    
-    * ae:  specify this type if you want to verify the reproducibility for the prebuilt AEs. The script will prepare materials for AE reproducible build in the hose machine and trigger the corresponding build in the launched container.    
     * all: specify this type if you want to verify all of the above components. The script will prepare materials for all the targets and trigger  the build in the launched container.   
  See `$ ./build_and_launch_docker.sh -h` for details  
  - The script [start_build.sh.tmp](./start_build.sh.tmp) is aimed to be run in the NIX environment in the launched container. It helps to automate the reproducible build in the container.
@@ -30,9 +29,6 @@ In order to reproduce the enclave build, there are three requirements:1. stable 
     ```
     $ ./build_and_launch_docker.sh
     ```
-    c) Below command triggers the reproducible build for 'ae' using a specified reproducible SGX SDK installer and code repo. Of course, you need to prepare the SGX SDK installer and SGX source repo beforehand.
-    ```
-    $ ./build_and_launch_docker.sh --reproduce-type ae --code-dir ~/code_dir --sdk-installer {prepared_sdk_installer} --sgx-src-dir {prepared_sgx_src}
-    ```
+
 > [!Note]
 > When using `--sgx-src-dir`, ensure the source directory is clean without build artifacts (e.g., CMake cache files, build directories). Previous build artifacts from different environments can cause build failures due to cached paths and ownership mismatches. Use a freshly cloned repository or run `make clean` in the source directory before using it with this option.

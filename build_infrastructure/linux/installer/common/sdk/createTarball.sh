@@ -7,9 +7,9 @@
 set -e
 
 SCRIPT_DIR=$(dirname "$0")
-ROOT_DIR="${SCRIPT_DIR}/../../../../"
+ROOT_DIR="${SCRIPT_DIR}/../../../../.."
 BUILD_DIR="${ROOT_DIR}/build/linux"
-LINUX_INSTALLER_DIR="${ROOT_DIR}/linux/installer"
+LINUX_INSTALLER_DIR="${ROOT_DIR}/build_infrastructure/linux/installer"
 LINUX_INSTALLER_COMMON_DIR="${LINUX_INSTALLER_DIR}/common"
 
 INSTALL_PATH=${SCRIPT_DIR}/output
@@ -41,16 +41,16 @@ generate_pkgconfig_files() {
     # Copy the template files into the folder
     for pkgconfig_file in $(ls -1 ${TEMPLATE_FOLDER}); do
         sed -e "s:@LIB_FOLDER_NAME@:$LIB_DIR:" \
-            -e "s:@SGX_VERSION@:$VERSION:" \
+            -e "s:@SDK_PKG_VERSION@:$VERSION:" \
             ${TEMPLATE_FOLDER}/$pkgconfig_file > ${TARGET_FOLDER}/$pkgconfig_file
     done
 }
 
-# Get Intel(R) SGX version
-SGX_VERSION=$(awk '/STRFILEVER/ {print $3}' ${ROOT_DIR}/common/inc/internal/se_version.h|sed 's/^\"\(.*\)\"$/\1/')
+# Get Intel(R) SGX package version
+SDK_PKG_VERSION=${SDK_VERSION:-${SDK_PKG_VERSION_DEFAULT:-$(awk '/#define STRFILEVER_DEFAULT/ {print $3}' ${ROOT_DIR}/common/inc/internal/se_version.h|sed 's/^\"\(.*\)\"$/\1/')}}
 
 # Generate pkgconfig files
-generate_pkgconfig_files $SGX_VERSION
+generate_pkgconfig_files $SDK_PKG_VERSION
 
 # Fetch the gen_source script
 cp ${LINUX_INSTALLER_COMMON_DIR}/gen_source/gen_source.py ${SCRIPT_DIR}

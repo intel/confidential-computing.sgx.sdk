@@ -363,7 +363,7 @@ ifneq ($(filter LOAD CF,$(MITIGATION-CVE-2020-0551)),)
 	@# so it respects MITIGATION scope and doesn't clobber per-variant components during builds.
 	@# 
 	@# Without MITIGATION, we do NOT remove the entire build/linux directory because it may contain
-	@# PSW outputs (aesm_service, urts, uae_service) or other non-SDK artifacts. We rely on
+	@# PSW outputs (urts) or other non-SDK artifacts. We rely on
 	@# component-level clean targets above to remove SDK artifacts only.
 	@$(RM) -rf $(BUILD_DIR)$(MITIGATION-CVE-2020-0551)
 endif

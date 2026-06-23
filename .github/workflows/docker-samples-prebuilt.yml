@@ -23,13 +23,13 @@ on:
     branches:
       - 'main*'
     paths:
-      - 'linux/installer/docker/**'
+      - 'build_infrastructure/linux/installer/docker/**'
       - '.github/workflows/docker-samples-prebuilt.yml'
   pull_request:
     branches:
       - 'main*'
     paths:
-      - 'linux/installer/docker/**'
+      - 'build_infrastructure/linux/installer/docker/**'
       - '.github/workflows/docker-samples-prebuilt.yml'
   schedule:
     # Monthly smoke build on the default branch (catches 01.org repo / base-image drift).
@@ -50,7 +50,7 @@ concurrency:
 
 env:
   # docker/build-context for every build in this workflow.
-  DOCKER_DIR: linux/installer/docker
+  DOCKER_DIR: build_infrastructure/linux/installer/docker
   # Optional release pin (only set via workflow_dispatch); empty tracks the rolling latest.
   SGX_VERSION: ${{ inputs.sgx_version }}
   # Compose plugin version used when bootstrap install is needed.

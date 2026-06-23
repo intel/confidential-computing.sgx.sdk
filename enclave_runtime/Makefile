@@ -1,63 +1,54 @@
 #
-# Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
+# Copyright(c) 2011-2026 Intel Corporation
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in
-#     the documentation and/or other materials provided with the
-#     distribution.
-#   * Neither the name of Intel Corporation nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+# SPDX-License-Identifier: BSD-3-Clause
 #
 
-# This Makefile will compile PSW to generate various components
-# including:
+# This Makefile will compile enclave_runtime components, including:
+#  - enclave_common static and dynamic library (libsgx_enclave_common.a and libsgx_enclave_common.so)
+#  - uRTS dynamic library (libsgx_urts.so and libsgx_urts_internal.so)
+#    Note: uRTS depends on enclave_common; both link se_wrapper (libwrapper.a from ../common/se_wrapper/)
 #
-#  - uRTS dynamice libarry
-#  - uae_service dynamice library
-#  - AESM and LE
-# 
 include ../buildenv.mk
 
-.PHONY: all uae_service urts AE clean rebuild
+.PHONY: all urts enclave_common clean rebuild
 
-all: uae_service urts AE
+all: urts
 
-urts: uae_service
+# Note: uRTS has internal dependency on enclave_common; this declaration is just for clarity
+urts: enclave_common
 	$(MAKE) -C urts/linux/
 
-uae_service:
-	$(MAKE) -C uae_service/linux/
-
-AE: urts
-	$(MAKE) -C ae/
+enclave_common:
+	$(MAKE) -C enclave_common/
 
 clean:
-	$(MAKE) -C ae/                 clean
-	$(MAKE) -C uae_service/linux/  clean
 	$(MAKE) -C urts/linux          clean
+	$(MAKE) -C enclave_common      clean
 
 rebuild:
 	$(MAKE) clean
 	$(MAKE) all
 
-	
+
+.PHONY: deb_libsgx_enclave_common
+deb_libsgx_enclave_common: enclave_common
+	ENCLAVE_RUNTIME_VERSION="$(ENCLAVE_RUNTIME_VERSION)" PKG_OUT_ROOT_DIR="$(PKG_OUT_ROOT_DIR)" $(ROOT_DIR)/build_infrastructure/linux/installer/deb/libsgx-enclave-common/build.sh
+
+.PHONY: rpm_libsgx_enclave_common
+rpm_libsgx_enclave_common: enclave_common
+	ENCLAVE_RUNTIME_VERSION="$(ENCLAVE_RUNTIME_VERSION)" PKG_OUT_ROOT_DIR="$(PKG_OUT_ROOT_DIR)" $(ROOT_DIR)/build_infrastructure/linux/installer/rpm/libsgx-enclave-common/build.sh
+
+.PHONY: deb_libsgx_urts
+deb_libsgx_urts: urts
+	ENCLAVE_RUNTIME_VERSION="$(ENCLAVE_RUNTIME_VERSION)" PKG_OUT_ROOT_DIR="$(PKG_OUT_ROOT_DIR)" $(ROOT_DIR)/build_infrastructure/linux/installer/deb/libsgx-urts/build.sh
+
+.PHONY: rpm_libsgx_urts
+rpm_libsgx_urts: urts
+	ENCLAVE_RUNTIME_VERSION="$(ENCLAVE_RUNTIME_VERSION)" PKG_OUT_ROOT_DIR="$(PKG_OUT_ROOT_DIR)" $(ROOT_DIR)/build_infrastructure/linux/installer/rpm/libsgx-urts/build.sh
+
+.PHONY: deb
+deb: deb_libsgx_enclave_common deb_libsgx_urts
+
+.PHONY: rpm
+rpm: rpm_libsgx_enclave_common rpm_libsgx_urts

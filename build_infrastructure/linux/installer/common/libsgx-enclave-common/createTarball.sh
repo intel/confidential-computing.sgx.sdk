@@ -7,8 +7,8 @@
 set -e
 
 SCRIPT_DIR=$(dirname "$0")
-ROOT_DIR="${SCRIPT_DIR}/../../../../"
-LINUX_INSTALLER_DIR="${ROOT_DIR}/linux/installer"
+ROOT_DIR="${SCRIPT_DIR}/../../../../.."
+LINUX_INSTALLER_DIR="${ROOT_DIR}/build_infrastructure/linux/installer"
 LINUX_INSTALLER_COMMON_DIR="${LINUX_INSTALLER_DIR}/common"
 
 INSTALL_PATH=${SCRIPT_DIR}/output

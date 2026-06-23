@@ -36,7 +36,7 @@ Note: Run ```make clean``` before switching mitigation modes.
 
 # Reproducible Build
 
-For a reproducible CPL build, follow the instructions in [reproducibility README.md](../../linux/reproducibility/README.md) to generate the CPL prebuilt.
+For a reproducible CPL build, follow the instructions in [reproducibility README.md](../../build_infrastructure/linux/reproducibility/README.md) to generate the CPL prebuilt.
 
 # Generating SGX Dispatcher Code
 
