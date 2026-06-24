@@ -173,7 +173,7 @@ ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
     plaintext = (const uint8_t*)(" ");
     plaintext_length = 0;
 
-    if(!session_info || !inp_buff)
+    if(!session_info || !inp_buff || !out_buff || !out_buff_len)
     {
         return INVALID_PARAMETER_ERROR;
     }
