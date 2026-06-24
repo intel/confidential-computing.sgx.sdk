@@ -30,20 +30,12 @@
 
 #include <string.h>
 
-#ifdef _TLIBC_USE_INTEL_FAST_STRING_
-extern char *_intel_fast_strchr(const char *, int);
-#else
 extern char *_strchr(const char *p, int ch);
-#endif
 
 
 char *
 strchr(const char *p, int ch)
 {
-#ifdef _TLIBC_USE_INTEL_FAST_STRING_
-	return _intel_fast_strchr(p, ch);
-#else
 	return _strchr(p, ch);	
 	/* NOTREACHED */
-#endif	
 }

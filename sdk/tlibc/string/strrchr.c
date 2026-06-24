@@ -32,19 +32,11 @@
 #include <string.h>
 
 
-#ifdef _TLIBC_USE_INTEL_FAST_STRING_
-extern char *_intel_fast_strrchr(const char *, int);
-#else
 extern char *_strrchr(const char *, int);
-#endif
 
 char *
 strrchr(const char *p, int ch)
 {
-#ifdef _TLIBC_USE_INTEL_FAST_STRING_
-	return _intel_fast_strrchr(p, ch);
-#else
 	return _strrchr(p, ch);
 	/* NOTREACHED */
-#endif	
 }

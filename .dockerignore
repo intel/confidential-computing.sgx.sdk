@@ -27,18 +27,14 @@ build_infrastructure/linux/installer/docker/
 
 # Host-compiled static/shared libs: the container recompiles everything, so drop
 # them. `make preparation` does NOT compile -- it only downloads/extracts prebuilt
-# libs into four fixed roots, which we re-include so the in-container build (which
+# libs into two fixed roots, which we re-include so the in-container build (which
 # does NOT re-run preparation) still has them:
 #   external/ippcp_internal/lib  -- prebuilt IPP crypto (libippcp.a)
-#   external/libm                -- prebuilt optimized math (SVML, Libm_ct)
-#   external/libirc              -- prebuilt Intel runtime-compat lib
 #   prebuilt/                    -- prebuilt DCAP OpenSSL
 **/*.a
 **/*.so
 **/*.so.*
 !external/ippcp_internal/lib/**
-!external/libm/**
-!external/libirc/**
 !prebuilt/**
 
 # Out-of-tree / top-level build output dirs

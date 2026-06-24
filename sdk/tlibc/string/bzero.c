@@ -31,20 +31,12 @@
 
 #include <string.h>
 
-#ifdef _TLIBC_USE_INTEL_FAST_STRING_
-extern void *_intel_fast_memset(void *, void *, size_t);
-#else
 extern void *_bzero(void *, size_t);
-#endif
 /*
  * bzero -- vax movc5 instruction
  */
 void
 bzero(void *b, size_t length)
 {
-#ifdef _TLIBC_USE_INTEL_FAST_STRING_
-	_intel_fast_memset(b, (void*)0, length);
-#else
 	_bzero(b, length);
-#endif
 }

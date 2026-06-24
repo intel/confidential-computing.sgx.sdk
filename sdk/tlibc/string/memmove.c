@@ -43,11 +43,7 @@ typedef	long word;		/* "word" used for optimal copy speed */
 #define	wmask	(wsize - 1)
 
 
-#ifdef _TLIBC_USE_INTEL_FAST_STRING_
-extern void *_intel_fast_memmove(void *, void *, size_t);
-#else
 extern void *__memmove(void *, void *, size_t);
-#endif
 
 /*
  * Copy a block of memory, handling overlap.
@@ -55,11 +51,7 @@ extern void *__memmove(void *, void *, size_t);
 void *
 memmove(void *dst0, const void *src0, size_t length)
 {
-#ifdef _TLIBC_USE_INTEL_FAST_STRING_
- 	return _intel_fast_memmove(dst0, (void*)src0, length);
-#else
 	return __memmove(dst0, src0, length);
-#endif
 }
 
 extern void* __memcpy_verw(void *dst0, const void *src0);

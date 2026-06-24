@@ -328,54 +328,28 @@ ENCLAVE_LDFLAGS  = $(ENC_LDFLAGS) $(COMMON_LDFLAGS) -Wl,-Bstatic -Wl,-Bsymbolic 
 ENCLAVE_CFLAGS += $(MITIGATION_CFLAGS)
 ENCLAVE_ASFLAGS = $(MITIGATION_ASFLAGS)
 
-# We have below choices as to crypto, math and string libs:
-# 1. crypto - SGXSSL (0), IPP crypto (1)
-# 2. math   - optimized (0), open sourced (1)
-# 3. string - optimized (0), open sourced (1)
+# We have below choices as to the crypto lib:
+#   crypto - SGXSSL (0), IPP crypto (1) [default]
 #
-# A macro 'USE_OPT_LIBS' is provided to allow users to build 
-# SGX SDK with different library combination by setting different 
-# value to 'USE_OPT_LIBS'.
-# By default, choose to build SDK using optimized IPP crypto +
-# open sourced string + open sourced math.
+# A macro 'USE_OPT_LIBS' selects the crypto library combination.
+# By default, build the SDK using optimized IPP crypto.
+#
+# LEGACY: USE_OPT_LIBS=2 and USE_OPT_LIBS=3 used to select the prebuilt,
+# closed-source "optimized" Intel string/math libraries (libirc / SVML /
+# Libm_ct); the last release that shipped them is 2.29.
 #
 # IPP + open sourced string + open sourced math
 USE_OPT_LIBS ?= 1
 USE_CRYPTO_LIB ?= 1
-USE_STRING_LIB ?= 1
-USE_MATH_LIB ?= 1
 
 ifeq ($(USE_OPT_LIBS), 0)
 # SGXSSL + open sourced string + open sourced math
     USE_CRYPTO_LIB := 0
-    USE_MATH_LIB := 1
-    USE_STRING_LIB := 1
-else ifeq ($(USE_OPT_LIBS), 2)
-# SGXSSL + optimized string + optimized math
-    USE_CRYPTO_LIB := 0
-    USE_MATH_LIB := 0
-    USE_STRING_LIB := 0
-else ifeq ($(USE_OPT_LIBS), 3)
-# IPP + optimized string + optimized math
-    USE_CRYPTO_LIB := 1
-    USE_MATH_LIB := 0
-    USE_STRING_LIB := 0
-endif
-
-# macro check
-ifeq ($(USE_MATH_LIB), 0)
-ifneq ($(USE_STRING_LIB), 0)
-$(error ERROR: Optimized math library depends on Optimized string library)
-endif
-endif
-
-ifneq ($(MITIGATION-CVE-2020-0551),)
-ifeq ($(USE_STRING_LIB), 0)
-$(error ERROR: Cannot build a mitigation SDK with Optimized string/math)
-endif
-ifeq ($(USE_MATH_LIB), 0)
-$(error ERROR: Cannot build a mitigation SDK with Optimized string/math)
-endif
+$(warning DEPRECATION: USE_OPT_LIBS=0 (SGXSSL crypto) is deprecated and planned to be removed in a future release; prefer USE_OPT_LIBS=1 (IPP - default).)
+else ifneq ($(filter 2 3,$(USE_OPT_LIBS)),)
+$(error ERROR: USE_OPT_LIBS=$(USE_OPT_LIBS) (optimized string/math) was removed; the last release supporting it is 2.29. Use USE_OPT_LIBS=0 (SGXSSL) or USE_OPT_LIBS=1 (IPP - default).)
+else ifneq ($(USE_OPT_LIBS), 1)
+$(error ERROR: invalid USE_OPT_LIBS=$(USE_OPT_LIBS); valid values are 0 (SGXSSL) or 1 (IPP - default).)
 endif
 
 

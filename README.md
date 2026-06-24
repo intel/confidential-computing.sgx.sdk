@@ -212,28 +212,37 @@ Building
 
   | Variable | Default | Effect |
   |---|---|---|
-  | `USE_OPT_LIBS` | `1` | Crypto/math/string library combination (see below) |
+  | `USE_OPT_LIBS` | `1` | Crypto library choice (see below) |
   | `DEBUG` | `0` | Set to `1` to include debug symbols |
+
+  <br>
 
   `USE_OPT_LIBS` combinations:
 
-  | Value | Crypto | String/Math |
-  |---|---|---|
-  | `0` | SGXSSL | open sourced |
-  | `1` *(default)* | IPP | open sourced |
-  | `2` | SGXSSL | optimized — **no-mitigation only** |
-  | `3` | IPP | optimized — **no-mitigation only** |
+  - | Value | Crypto |
+    |---|---|
+    | `0` | SGXSSL *(:warning: this flavor is deprecated)* |
+    | `1` *(default)* | IPP |
 
-  `USE_OPT_LIBS=2` or `3` combined with `make sdk` will abort immediately with `ERROR: Cannot build a mitigation SDK with Optimized string/math`. To use a non-default crypto combination:
-  ```bash
-  make sdk USE_OPT_LIBS=0
-  ```
+    To use a **non-default** crypto combination:
+    ```bash
+    make sdk USE_OPT_LIBS=0
+    ```
+    <!-- DOC_MAINTENANCE: Remove the USE_OPT_LIBS=2/3 note in the future, after a few release cycles (i.e., v2.32++) -->
+    > ℹ️ **Note:**
+    > `USE_OPT_LIBS=2` and `USE_OPT_LIBS=3` (using the prebuilt "optimized" Intel string/math libraries) have been **removed**.
+    > The last release to support them is [**2.29**](https://github.com/intel/confidential-computing.sgx/releases/tag/sgx_2.29).
+    > Passing either value now aborts the build with an error.
+    >
+    > Use `USE_OPT_LIBS=0` (SGXSSL) or `USE_OPT_LIBS=1` (IPP); both build the open-sourced string/math libraries.
+    >
+    > - **Caution:**  `USE_OPT_LIBS=0` flavor (OpenSSL-based) is **deprecated**.
+    >   Support is planned to be removed in an upcoming release.
+    >   Consider migrating to the default (IPP-based) variant.
 
 - To build without CVE-2020-0551 mitigations (single pass):
   ```bash
   make sdk_no_mitigation
-  make sdk_no_mitigation USE_OPT_LIBS=2
-  make sdk_no_mitigation USE_OPT_LIBS=3
   ```
 
 - To build the Intel&reg; SGX SDK with debug information:

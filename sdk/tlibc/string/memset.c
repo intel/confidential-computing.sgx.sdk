@@ -35,11 +35,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#ifdef _TLIBC_USE_INTEL_FAST_STRING_
-extern void *_intel_fast_memset(void *, void *, size_t);
-#else
 extern void *__memset(void *dst, int c, size_t n);
-#endif
 
 extern void* __memcpy_verw(void *dst0, const void *src0);
 extern void* __memcpy_8a(void *dst0, const void *src0);
@@ -80,9 +76,5 @@ memset_verw(void *dst, int c, size_t len)
 void *
 memset(void *dst, int c, size_t n)
 {
-#ifdef _TLIBC_USE_INTEL_FAST_STRING_
-	return _intel_fast_memset(dst, (void*)c, n);
-#else
 	return __memset(dst, c, n);
-#endif /* !_TLIBC_USE_INTEL_FAST_STRING_ */	
 }
