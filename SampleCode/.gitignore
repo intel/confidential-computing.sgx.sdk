@@ -1,0 +1,12 @@
+**/*.so
+**/*.so.enc
+**/*_test.pem
+**/*_test_key.pem
+**/bin/
+**/app
+**/tls_client_host
+**/tls_non_enc_client
+**/tls_server_host
+**/sample
+**/.config*
+**/*.deb

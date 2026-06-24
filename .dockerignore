@@ -1,9 +1,103 @@
-linux/installer/docker
-linux/installer/docker/*
-docker
-docker/*
-docker/build/*
+# .dockerignore for the source-pulling build context under
+# build_infrastructure/docker/build/ (Dockerfile + centos-samples.dockerfile,
+# both built with `docker build ... ../../../`, so the context root is the repo root).
+#
+# These mirror .gitignore's BUILD-OUTPUT rules so host-built artifacts don't bloat
+# the image or contaminate the in-container rebuild. Two deliberate differences:
+#   1) dockerignore matching differs slightly from gitignore; patterns without a slash match at any depth,
+#      but we often prefix with **/ to make “match anywhere” intent explicit;
+#   2) we ignore host-built *.a/*.so* outputs, but re-include the downloaded `make preparation` inputs
+#      (prebuilt/, external/toolset, ipp libs+headers, emm symlinks, cbor copy):
+#      the build COPYs a *prepared* tree and needs them.
+
+# VCS metadata and docs (not needed in the image)
+**/.git*
 *.md
-.git*
-*/*/.git*
+
+# Docker scaffolding (Dockerfiles are passed via -f, not consumed from context)
+build_infrastructure/docker/
+build_infrastructure/linux/installer/docker/
+
+# Compiled objects and generated Edger8r proxies (regenerated in-container)
+**/*.o
+**/*_u.c
+**/*_u.h
+**/*_t.c
+**/*_t.h
+
+# Host-compiled static/shared libs: the container recompiles everything, so drop
+# them. `make preparation` does NOT compile -- it only downloads/extracts prebuilt
+# libs into four fixed roots, which we re-include so the in-container build (which
+# does NOT re-run preparation) still has them:
+#   external/ippcp_internal/lib  -- prebuilt IPP crypto (libippcp.a)
+#   external/libm                -- prebuilt optimized math (SVML, Libm_ct)
+#   external/libirc              -- prebuilt Intel runtime-compat lib
+#   prebuilt/                    -- prebuilt DCAP OpenSSL
+**/*.a
+**/*.so
+**/*.so.*
+!external/ippcp_internal/lib/**
+!external/libm/**
+!external/libirc/**
+!prebuilt/**
+
+# Out-of-tree / top-level build output dirs
+**/_build/
+/build/
+
+# Installer-staged package output (rebuilt in-container)
+build_infrastructure/linux/installer/common/**/output/
+
+# Autotools / libtool / automake outputs
+**/.deps/
+**/.libs/
+**/*.lo
+**/*.la
+**/*.lai
+**/.dirstamp
+**/*.stamp
+
+# CMake outputs
+**/CMakeCache.txt
+**/CMakeFiles/
+**/cmake_install.cmake
+**/compile_commands.json
+**/install_manifest.txt
+**/CMakeLists.txt.user
+**/CMakeUserPresets.json
+**/CTestTestfile.cmake
+**/Testing/
+**/_deps/
+**/cmake-build/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+
+# Orphaned GNU binutils temp files (ar/objcopy/strip "stXXXXXX")
+**/st[0-9A-Za-z][0-9A-Za-z][0-9A-Za-z][0-9A-Za-z][0-9A-Za-z][0-9A-Za-z]
+
+# IDE / editor
+**/.vs
+**/.idea/
+**/.vscode/
+**/.cache/
+
+# Merge/backup leftovers
+**/*.orig
+**/*.diff
+**/*.BASE.*
+**/*.LOCAL.*
+**/*.REMOTE.*
+**/*.BACKUP.*
+**/*.bak
+
+# Temp / log / swap / OS cruft
+**/*.tmp
+**/*.log
+**/*.swp
+**/*.swo
+**/*~
+**/.DS_Store
+**/Thumbs.db
 

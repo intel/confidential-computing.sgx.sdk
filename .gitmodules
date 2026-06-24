@@ -2,26 +2,40 @@
 	path = external/openmp/openmp_code
 	url = https://github.com/llvm-mirror/openmp.git
 	branch = svn-tags/RELEASE_801
+	# external code, w/ custom patches applied in-place, so ignore changes-wise (no intent to upstream)
+	ignore = dirty
 [submodule "ipp-crypto"]
 	path = external/ippcp_internal/ipp-crypto
 	url = https://github.com/intel/cryptography-primitives.git
 	branch = cryptography-primitives_2_2_0
+	# external code, w/ custom patches applied in-place, so ignore changes-wise (no intent to upstream)
+	ignore = dirty
 [submodule "external/protobuf/protobuf_code"]
 	path = external/protobuf/protobuf_code
 	url = https://github.com/protocolbuffers/protobuf.git
 	branch = 33.x
+	# external code, w/ custom patches applied in-place, so ignore changes-wise (no intent to upstream)
+	ignore = dirty
 [submodule "external/sgx-emm/emm_src"]
 	path = external/sgx-emm/emm_src
 	url = https://github.com/intel/sgx-emm.git
+	# external code, built in-source (and some outputs not ignored by built-in .gitignore), so ignore changes-wise (no intent to upstream from here)
+	ignore = untracked
 [submodule "external/cbor/libcbor"]
 	path = external/cbor/libcbor
 	url = https://github.com/PJK/libcbor.git
+	# external code, w/ custom patches applied in-place, so ignore changes-wise (no intent to upstream)
+	ignore = dirty
 [submodule "external/libcxxrt/libcxxrt_code"]
 	path = external/libcxxrt/libcxxrt_code
 	url = https://github.com/libcxxrt/libcxxrt.git
+	# external code, w/ custom patches applied in-place, so ignore changes-wise (no intent to upstream)
+	ignore = dirty
 [submodule "external/protobuf/abseil-cpp"]
 	path = external/protobuf/abseil-cpp
 	url = https://github.com/abseil/abseil-cpp.git
 	# Version choice is linked to protobuf requirements (i.e. it's 'dependencies.cmake').
 	branch = lts_2025_05_12
+	# external code, w/ custom patches applied in-place, so ignore changes-wise (no intent to upstream)
+	ignore = dirty
 
