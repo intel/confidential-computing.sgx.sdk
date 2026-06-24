@@ -66,7 +66,7 @@ size_t protected_fs_file::write(const void* ptr, size_t size, size_t count)
 	}
 #endif
 
-	if (sgx_is_outside_enclave(ptr, data_left_to_write))
+	if (!sgx_is_within_enclave(ptr, data_left_to_write))
 	{
 		last_error = SGX_ERROR_INVALID_PARAMETER;
 		sgx_thread_mutex_unlock(&mutex);
@@ -200,7 +200,7 @@ size_t protected_fs_file::read(void* ptr, size_t size, size_t count)
 #endif
 
 
-	if (sgx_is_outside_enclave(ptr, data_left_to_read))
+	if (!sgx_is_within_enclave(ptr, data_left_to_read))
 	{
 		last_error = EINVAL;
 		sgx_thread_mutex_unlock(&mutex);
