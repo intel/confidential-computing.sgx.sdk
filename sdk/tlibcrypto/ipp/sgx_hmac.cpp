@@ -69,13 +69,14 @@ static void fips_self_test_hmac()
  *           int src_len - Source length
  *           const unsigned char *p_key - Pointer to key used in message authentication operation
  *           int key_len - Key length
- *           int mac_len - Expected output MAC length
+ *           int mac_len - Expected output MAC length (can be truncated to < SGX_HMAC256_MAC_SIZE)
  *   Output: unsigned char *p_mac - Pointer to resultant MAC
  */
 sgx_status_t sgx_hmac_sha256_msg(const unsigned char *p_src, int src_len, const unsigned char *p_key, int key_len,
                                  unsigned char *p_mac, int mac_len)
 {
-    if ((p_src == NULL) || (p_key == NULL) || (p_mac == NULL) || (src_len <= 0) || (key_len <= 0) || (mac_len <= 0))
+    if ((p_src == NULL) || (p_key == NULL) || (p_mac == NULL) || (src_len <= 0) || (key_len <= 0) ||
+        (mac_len <= 0) || (mac_len > SGX_HMAC256_MAC_SIZE))
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }

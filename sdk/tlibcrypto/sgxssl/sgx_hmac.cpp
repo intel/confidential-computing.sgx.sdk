@@ -45,33 +45,39 @@
  *           int src_len - Source length
  *           const unsigned char *p_key - Pointer to key used in message authentication operation
  *           int key_len - Key length
- *           int mac_len - Expected output MAC length
+ *           int mac_len - Expected output MAC length (can be truncated to < SGX_HMAC256_MAC_SIZE)
  *   Output: unsigned char *p_mac - Pointer to resultant MAC
  */
 sgx_status_t sgx_hmac_sha256_msg(const unsigned char *p_src, int src_len, const unsigned char *p_key, int key_len,
     unsigned char *p_mac, int mac_len)
 {
-	if ((p_src == NULL) || (p_key == NULL) || (p_mac == NULL) || (src_len <= 0) || (key_len <= 0) || (mac_len <= 0)) {
+	if ((p_src == NULL) || (p_key == NULL) || (p_mac == NULL) || (src_len <= 0) || (key_len <= 0) ||
+	    (mac_len <= 0) || (mac_len > SGX_HMAC256_MAC_SIZE)) {
 		return SGX_ERROR_INVALID_PARAMETER;
 	}
 
 	sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+	unsigned char full_mac[SGX_HMAC256_MAC_SIZE];
 	unsigned char *ret_mac = NULL;
 	unsigned int md_len = 0;
 	do {
-		ret_mac = HMAC(EVP_sha256(), (const void *)p_key, key_len, p_src, src_len, p_mac, &md_len);
-		if (ret_mac == NULL || md_len != (size_t)mac_len) {
+		ret_mac = HMAC(EVP_sha256(), (const void *)p_key, key_len, p_src, src_len, full_mac, &md_len);
+		if (ret_mac == NULL || md_len != SGX_HMAC256_MAC_SIZE) {
+			break;
+		}
+		if (memcpy_s(p_mac, mac_len, full_mac, mac_len) != 0) {
 			break;
 		}
 
 		ret = SGX_SUCCESS;
 	} while (0);
-	
+
 	md_len = 0;
+	memset_s(full_mac, SGX_HMAC256_MAC_SIZE, 0, SGX_HMAC256_MAC_SIZE);
 	if (ret != SGX_SUCCESS) {
 		memset_s(p_mac, mac_len, 0, mac_len);
 	}
-	
+
 	return ret;
 }
 
