@@ -35,12 +35,16 @@ external/ippcp_internal/license/
 external/toolset/
 redist.txt
 
-# Downloaded prebuilts
+# Downloaded (prebuilts and sources)
 prebuilt/
 as.ld.objdump.r4.tar.gz
 optimized_libs*.tar.gz
 prebuilt_dcap_*.tar.gz
 SHA256SUM_prebuilt_*.cfg
+check_sum_openssl.txt
+check_sum_sgxssl.txt
+external/sgxssl/*
+!external/sgxssl/prepare_sgxssl.sh
 
 # directory created when running reproducibility scripts
 build_infrastructure/linux/reproducibility/code_dir/
