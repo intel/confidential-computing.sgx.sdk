@@ -33,6 +33,7 @@
 #include "string.h"
 #include "sgx_tcrypto.h"
 #include "se_tcrypto_common.h"
+#include "se_memcpy.h"
 #include "openssl/hmac.h"
 #include "openssl/err.h"
 #include <openssl/core_names.h>
