@@ -278,8 +278,13 @@ extern "C" ATTESTATION_STATUS generate_response(secure_message_t* req_message,
     //Casting the decrypted data to the marshaling structure type to obtain type of request (generic message exchange/enclave to enclave call)
     ms = (ms_in_msg_exchange_t *)decrypted_data;
 
-    // Verify if the nonce obtained in the request is equal to the session nonce
-    if(*((uint32_t*)req_message->message_aes_gcm_data.reserved) != session_info->active.counter || *((uint32_t*)req_message->message_aes_gcm_data.reserved) > ((uint32_t)-2))
+    // Verify if the nonce obtained in the request is equal to the session nonce.
+    // Request IVs use low 31 bits only (high bit clear); reject if high bit is set or counter exceeds 2^31-2.
+    // Copy the IV out with memcpy: reserved is a uint8_t[] in a packed struct, so
+    // reading it through a uint32_t* could be an unaligned access (undefined behavior).
+    uint32_t req_iv = 0;
+    memcpy(&req_iv, req_message->message_aes_gcm_data.reserved, sizeof(req_iv));
+    if(req_iv != session_info->active.counter || req_iv > 0x7FFFFFFEu)
     {
         SAFE_FREE(decrypted_data);
         return INVALID_PARAMETER_ERROR;
@@ -336,8 +341,10 @@ extern "C" ATTESTATION_STATUS generate_response(secure_message_t* req_message,
     //Increment the Session Nonce (Replay Protection)
     session_info->active.counter = session_info->active.counter + 1;
 
-    //Set the response nonce as the session nonce
-    memcpy(&temp_resp_message->message_aes_gcm_data.reserved,&session_info->active.counter,sizeof(session_info->active.counter));
+    //Set the response nonce: high bit set to distinguish response direction from request
+    //direction (high bit clear), preventing (key, IV) reuse across the two directions.
+    uint32_t resp_iv = session_info->active.counter | 0x80000000u;
+    memcpy(temp_resp_message->message_aes_gcm_data.reserved, &resp_iv, sizeof(resp_iv));
 
     //Prepare the response message with the encrypted payload
     status = sgx_rijndael128GCM_encrypt(&session_info->active.AEK, (uint8_t*)resp_data, data2encrypt_length,

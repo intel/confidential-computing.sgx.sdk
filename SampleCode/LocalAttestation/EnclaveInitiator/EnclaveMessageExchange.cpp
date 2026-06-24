@@ -177,8 +177,10 @@ ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
     {
         return INVALID_PARAMETER_ERROR;
     }
-    //Check if the nonce for the session has not exceeded 2^32-2 if so end session and start a new session
-    if(session_info->active.counter == ((uint32_t) - 2))
+
+    //Check if the nonce for the session has not exceeded 2^31-2; the high bit is reserved
+    //as a direction bit (0=request, 1=response) to prevent IV reuse across directions.
+    if(session_info->active.counter == 0x7FFFFFFEu)
     {
         close_session(session_info);
         create_session(session_info);
@@ -292,8 +294,13 @@ ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
         return status;
     }
 
-    // Verify if the nonce obtained in the response is equal to the session nonce + 1 (Prevents replay attacks)
-    if(*((uint32_t*)resp_message->message_aes_gcm_data.reserved) != (session_info->active.counter + 1 ))
+    // Verify response nonce: high bit must be set (response direction) and
+    // low 31 bits must equal counter + 1. Copy the IV out with memcpy: reserved
+    // is a uint8_t[] in a packed struct, so reading it through a uint32_t* could
+    // be an unaligned access (undefined behavior).
+    uint32_t resp_iv = 0;
+    memcpy(&resp_iv, resp_message->message_aes_gcm_data.reserved, sizeof(resp_iv));
+    if(resp_iv != ((session_info->active.counter + 1) | 0x80000000u))
     {
         SAFE_FREE(req_message);
         SAFE_FREE(resp_message);
