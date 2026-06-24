@@ -51,16 +51,21 @@ extern "C"
 
 unsigned long inet_addr2(const char *str)
 {
+    // An IPv4 address is exactly 4 dot-separated octets, one byte each.
+    const int IPV4_OCTET_COUNT = 4;
     unsigned long lHost = 0;
     char *pLong = (char *)&lHost;
     char *p = (char *)str;
-    while (p)
+    int components = 0;
+    while (p && components < IPV4_OCTET_COUNT)
     {
-        *pLong++ = atoi(p);
+        *pLong++ = (unsigned char)atoi(p);
+        components++;
         p = strchr(p, '.');
         if (p)
             ++p;
     }
+    if (components != IPV4_OCTET_COUNT) return INADDR_NONE;
     return lHost;
 }
 // This routine conducts a simple HTTP request/response communication with
