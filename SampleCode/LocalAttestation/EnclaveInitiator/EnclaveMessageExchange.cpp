@@ -177,7 +177,10 @@ ATTESTATION_STATUS send_request_receive_response(dh_session_t *session_info,
     {
         return INVALID_PARAMETER_ERROR;
     }
-
+    if(session_info->status != ACTIVE)
+    {
+        return INVALID_SESSION;
+    }
     //Check if the nonce for the session has not exceeded 2^31-2; the high bit is reserved
     //as a direction bit (0=request, 1=response) to prevent IV reuse across directions.
     if(session_info->active.counter == 0x7FFFFFFEu)
