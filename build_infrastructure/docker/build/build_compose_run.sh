@@ -26,7 +26,7 @@ fi
 docker build --target sample_deb --build-arg https_proxy=$https_proxy \
              --build-arg http_proxy=$http_proxy \
              --build-arg SAMPLE_NAME="$SAMPLE_NAME" \
-             -t sgx_sample -f ./Dockerfile ../../
+             -t sgx_sample -f ./Dockerfile ../../../
 
 # Resolve host SGX group GIDs for group_add in the yml (dynamic, not stable across
 # hosts): "sgx" (systemd >= 248, /dev/sgx_enclave).

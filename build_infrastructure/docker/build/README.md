@@ -58,7 +58,7 @@ Prerequisites are the same as above (`make preparation`, etc.)
 To build the CentOS sample target from the CentOS Dockerfile:
 
 ```bash
-docker build --target sample_rpm -t sgx_sample_centos -f ./centos-samples.dockerfile ../../
+docker build --target sample_rpm -t sgx_sample_centos -f ./centos-samples.dockerfile ../../../
 ```
 
 Run the sample container:

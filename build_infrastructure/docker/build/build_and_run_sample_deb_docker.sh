@@ -18,7 +18,7 @@ fi
 docker build --target sample_deb --build-arg https_proxy=$https_proxy \
              --build-arg http_proxy=$http_proxy \
              --build-arg SAMPLE_NAME="$SAMPLE_NAME" \
-             -t sgx_sample_deb -f ./Dockerfile ../../
+             -t sgx_sample_deb -f ./Dockerfile ../../../
 
 # In-kernel driver (5.11+) uses /dev/sgx_enclave.
 
