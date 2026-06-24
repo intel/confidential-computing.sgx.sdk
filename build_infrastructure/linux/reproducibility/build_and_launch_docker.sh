@@ -181,8 +181,8 @@ case $type in
         exit 1
 esac
 
-cp $script_dir/start_build.sh.tmp $code_dir/start_build.sh
-chmod +x $code_dir/start_build.sh
+cp "$script_dir/start_build.sh.tmpl" "$code_dir/start_build.sh"
+chmod +x "$code_dir/start_build.sh"
 generate_cmd_script
 
 ######################################################
