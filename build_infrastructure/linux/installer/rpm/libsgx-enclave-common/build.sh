@@ -40,14 +40,10 @@ pre_build() {
 }
 
 post_build() {
-    # If PKG_OUT_ROOT_DIR is non-default, move the resulting packages to the target dir.
-    if [ "${SCRIPT_DIR}" != "$(readlink -f "${RPM_OUT_DIR}")" ]; then
-        mkdir -p "${RPM_OUT_DIR}"
-        for FILE in $(find ${SCRIPT_DIR}/${RPM_BUILD_FOLDER} -name "*.rpm" 2> /dev/null); do
-            mv "${FILE}" "${RPM_OUT_DIR}"
-        done
-    fi
-    rm -fR ${SCRIPT_DIR}/${RPM_BUILD_FOLDER}
+    # packages are spread across ${SCRIPT_DIR}/${RPM_BUILD_FOLDER}/RPMS and ${SCRIPT_DIR}/${RPM_BUILD_FOLDER}/SRPMS; flatten them
+    mkdir -p "${RPM_OUT_DIR}"
+    find "${SCRIPT_DIR}/${RPM_BUILD_FOLDER}" -type f -name "*.rpm" -exec mv -t "${RPM_OUT_DIR}" -- {} +
+    rm -rf -- "${SCRIPT_DIR:?}/${RPM_BUILD_FOLDER:?}"
 }
 
 update_spec() {
