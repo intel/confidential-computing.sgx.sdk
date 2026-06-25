@@ -4,6 +4,11 @@
 *~
 /*.log
 /*.trs
+# autoconf feature-test scratch files (conftest.c/.cpp/.err, the conftest
+# executable, confdefs.h) created transiently while ./configure runs.
+# conftest.o is already covered by *.[oa] above.
+conftest*
+confdefs.h
 /.deps
 /.libs
 /GPATH

@@ -28,6 +28,11 @@
 Makefile
 stamp-h1
 
+# autoconf feature-test scratch files (conftest.c/.cpp/.o/.err, the conftest
+# executable, confdefs.h) created transiently while ./configure runs
+conftest*
+confdefs.h
+
 # top-level docs/headers generated from the committed *.in / *.am
 /INSTALL
 /include/config.h
