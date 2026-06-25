@@ -43,6 +43,10 @@ ifdef DEBUG
 	PB_CONFIG = -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER_WORKS=TRUE -DCMAKE_CXX_COMPILER_WORKS=TRUE
 	LIBPB = $(PB_DIR)/final_tlibPB/build/libprotobufd.a
 endif
+# Keep the SGX protobuf build on C++17 explicitly: without a standard pin,
+# this toolchain can default to C++20 and enable destroying-delete paths that
+# the SGX libc++ headers in this tree do not provide.
+PB_CONFIG += -DCMAKE_CXX_STANDARD=17
 ENC_CXXFLAGS = $(patsubst -fpie, -fpic, $(ENCLAVE_CXXFLAGS))
 PB_CONFIG += -DCMAKE_CXX_FLAGS="$(ENC_CXXFLAGS)"
 PB_CONFIG += -DSGX_PROGRAM_SEARCH_PATH="$(EXT_BINUTILS_DIR)"

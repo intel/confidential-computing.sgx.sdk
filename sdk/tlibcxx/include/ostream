@@ -272,11 +272,39 @@ basic_ostream<_CharT, _Traits>::sentry::sentry(basic_ostream<_CharT, _Traits>& _
     }
 }
 
+// ---- portability shim 
+// std::uncaught_exceptions() (plural) was introduced by N4259 (C++17) and is
+// tracked by the SD-6 feature-test macro __cpp_lib_uncaught_exceptions.
+// MSVC has had it since VS2015 (1900) even in C++11/14 mode.
+// GCC/Clang expose it via __cpp_lib_uncaught_exceptions once <exception> is
+// included with a sufficiently new stdlib.
+//
+// Fall back to std::uncaught_exception() (singular, bool) on anything older.
+// That function is deprecated in C++17 and removed in C++20, but still works
+// for the simple "am I currently unwinding?" question on old toolchains.
+//
+// To avoid the deprecation warning we wrap the call in a non-template inline
+// helper so name lookup is resolved at definition time.
+namespace {
+inline bool __libcxx_uncaught_exception() _NOEXCEPT {
+#if defined(__cpp_lib_uncaught_exceptions) && __cpp_lib_uncaught_exceptions >= 201411L
+    // C++17 path: available on GCC>=6, Clang>=3.5 (with new stdlib), MSVC>=1900
+    return std::uncaught_exceptions() > 0;
+#elif defined(_MSC_VER) && _MSC_VER >= 1900
+    // MSVC 2015+ always has it even in C++11/14 mode
+    return std::uncaught_exceptions() > 0;
+#else
+    // Pre-C++17 fallback: the old bool-returning function
+    return std::uncaught_exception();
+#endif
+}
+} // namespace
+
 template <class _CharT, class _Traits>
 basic_ostream<_CharT, _Traits>::sentry::~sentry()
 {
     if (__os_.rdbuf() && __os_.good() && (__os_.flags() & ios_base::unitbuf)
-                      && !uncaught_exception())
+                      && !__libcxx_uncaught_exception())
     {
 #ifndef _LIBCPP_NO_EXCEPTIONS
         try

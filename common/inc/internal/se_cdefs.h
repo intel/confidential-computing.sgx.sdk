@@ -100,5 +100,15 @@
         return sgx_##libname##_version;                                                     \
     } 
 
+// The regparm calling convention only has an effect on 32-bit x86; on x86_64 the
+// SysV ABI already passes the first integer argument in a register (matching the
+// assembly in trts_pic.S). Applying regparm on x86_64 is a no-op that newer GCC
+// (>=16) reports via -Werror=attributes, so guard it like tls_support.c does.
+
+#if defined(SE_GNU32)
+#  define SE_REGPARM(n) regparm(n)
+#else
+#  define SE_REGPARM(n)
+#endif
 
 #endif

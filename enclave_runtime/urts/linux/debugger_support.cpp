@@ -43,7 +43,7 @@
 #include <util.h>
 #include <pthread.h>
 
-#define fastcall __attribute__((regparm(3)))
+#define fastcall __attribute__((SE_REGPARM(3)))
 
 extern "C" void fastcall sgx_debug_load_state_add_element(const debug_enclave_info_t *enclave_info, debug_enclave_info_t** g_debug_enclave_info_list);
 extern "C" void fastcall sgx_debug_unload_state_remove_element(const debug_enclave_info_t *enclave_info, debug_enclave_info_t** pre_enclave_info, debug_enclave_info_t* next_enclave_info);

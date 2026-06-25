@@ -478,7 +478,7 @@ struct ms_str
     void * ms;
 };
 
-#define fastcall __attribute__((regparm(3),noinline,visibility("default")))
+#define fastcall __attribute__((SE_REGPARM(3))) __attribute__((noinline,visibility("default")))
 //this function is used to notify GDB scripts
 //GDB is supposed to have a breakpoint on urts_add_tcs to receive debug interupt
 //once the breakpoint has been hit, GDB extracts the address of tcs and sets DBGOPTIN for the tcs

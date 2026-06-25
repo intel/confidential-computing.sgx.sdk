@@ -197,11 +197,11 @@ int sgx_unregister_exception_handler(void *handler)
 
 // continue_execution(sgx_exception_info_t *info):
 // try to restore the thread context saved in info to current execution context.
-extern "C" __attribute__((regparm(1))) void continue_execution(sgx_exception_info_t *info);
+extern "C" __attribute__((SE_REGPARM(1))) void continue_execution(sgx_exception_info_t *info);
 extern "C" void restore_xregs(uint8_t *buf);
 
 #ifndef SE_SIM
-extern "C" __attribute__((regparm(1))) void second_phase(sgx_exception_info_t *info, 
+extern "C" __attribute__((SE_REGPARM(1))) void second_phase(sgx_exception_info_t *info, 
     void *new_sp, void *second_phase_handler_addr);
 
 extern "C" void constant_time_apply_sgxstep_mitigation_and_continue_execution(sgx_exception_info_t *info,
@@ -329,7 +329,7 @@ static void apply_constant_time_sgxstep_mitigation_and_continue_execution(sgx_ex
 //      the 2nd phrase exception handing, which traverse registered exception handlers.
 //      if the exception can be handled, then continue execution
 //      otherwise, throw abortion, go back to 1st phrase, and call the default handler.
-extern "C" __attribute__((regparm(1))) void internal_handle_exception(sgx_exception_info_t *info)
+extern "C" __attribute__((SE_REGPARM(1))) void internal_handle_exception(sgx_exception_info_t *info)
 {
     int status = EXCEPTION_CONTINUE_SEARCH;
     handler_node_t *node = NULL;
