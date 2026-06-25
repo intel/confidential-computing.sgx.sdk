@@ -156,6 +156,16 @@ INCLUDE :=
 # this will return the path to the file that included the buildenv.mk file
 CUR_DIR := $(realpath $(call parent-dir,$(lastword $(wordlist 2,$(words $(MAKEFILE_LIST)),x $(MAKEFILE_LIST)))))
 
+# Normalize DEBUG so that 0 or empty behaves exactly like "not defined",
+# including for "ifdef DEBUG" checks in sub-makes (drop it from MAKEOVERRIDES/env).
+# After this, a plain "ifdef DEBUG" is correct: defined (non-zero) => debug.
+ifneq ($(origin DEBUG),undefined)
+ifeq ($(filter-out 0,$(strip $(DEBUG))),)
+override undefine DEBUG
+override MAKEOVERRIDES := $(filter-out DEBUG=%,$(MAKEOVERRIDES))
+unexport DEBUG
+endif
+endif
 ifdef DEBUG
     COMMON_FLAGS += -O0 -ggdb -DDEBUG -UNDEBUG
     COMMON_FLAGS += -DSE_DEBUG_LEVEL=SE_TRACE_DEBUG
