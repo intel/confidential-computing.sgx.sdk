@@ -22,6 +22,7 @@ PREBUILT_OPENSSL_DIR := $(ROOT_DIR)/prebuilt/dcap/openssl
 CRYPTO_LIB := -L$(PREBUILT_OPENSSL_DIR)/lib/linux64 -lcrypto
 
 INC += -I$(SGX_HEADER_DIR)                \
+       -I$(COMMON_DIR)/inc/               \
        -I$(COMMON_DIR)/inc/internal       \
        -I$(COMMON_DIR)/inc/internal/linux \
        -I$(LINUX_ENCLAVE_RUNTIME_DIR)/enclave_common  \
@@ -30,7 +31,8 @@ INC += -I$(SGX_HEADER_DIR)                \
        -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser     \
        -I$(VTUNE_DIR)/include \
        -I$(VTUNE_DIR)/sdk/src/ittnotify   \
-       -I$(PREBUILT_OPENSSL_DIR)/inc
+       -I$(PREBUILT_OPENSSL_DIR)/inc \
+       -I$(LINUX_EXTERNAL_DIR)/sgx-emm/emm_src/include
 
 LDFLAGS := -lwrapper
 INTERNAL_LDFLAGS := -lwrapper
@@ -48,8 +50,7 @@ DIR4 := $(LINUX_ENCLAVE_RUNTIME_DIR)/urts/parser/linux
 DIR5 := $(LINUX_ENCLAVE_RUNTIME_DIR)/../common/src/linux
 DIR6 := $(LINUX_ENCLAVE_RUNTIME_DIR)/../common/src
 
-LIB += -L$(COMMON_DIR)/se_wrapper \
-       -L$(SGX_LIB_DIR)
+LIB += -L$(COMMON_DIR)/se_wrapper
 
 OBJ1 := loader.o          \
         node.o            \

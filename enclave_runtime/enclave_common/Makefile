@@ -20,11 +20,13 @@ CFLAGS += -fPIC -Werror -g
 CFLAGS += $(ADDED_INC)
 
 INC += -I$(SGX_HEADER_DIR)                \
+       -I$(COMMON_DIR)/inc/               \
        -I$(COMMON_DIR)/inc/internal       \
        -I$(COMMON_DIR)/inc/internal/linux \
        -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/           \
        -I$(LINUX_ENCLAVE_RUNTIME_DIR)/urts/linux      \
-       -I$(LINUX_ENCLAVE_RUNTIME_DIR)/enclave_common
+       -I$(LINUX_ENCLAVE_RUNTIME_DIR)/enclave_common  \
+       -I$(LINUX_EXTERNAL_DIR)/sgx-emm/emm_src/include
 
 LDFLAGS := -lwrapper -ldl
 LDFLAGS += $(COMMON_LDFLAGS) -Wl,--version-script=sgx_enclave_common.lds -Wl,--gc-sections

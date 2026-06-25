@@ -63,6 +63,7 @@ preparation: dcap_prebuilts
 	cd external/cbor/sgx_libcbor && git apply ../sgx_cbor.patch >/dev/null 2>&1 || git apply ../sgx_cbor.patch --check -R
 	cd external/ippcp_internal/ipp-crypto && git apply ../0001-Cryptography-Primitives-for-SGX.patch > /dev/null 2>&1 || git apply ../0001-Cryptography-Primitives-for-SGX.patch --check -R
 	cd external/ippcp_internal/ipp-crypto && mkdir -p build
+	cd external/libcxxrt/libcxxrt_code && git apply ../sgx_libcxxrt.patch >/dev/null 2>&1 || git apply ../sgx_libcxxrt.patch --check -R
 ifeq ($(USE_PREBUILT_IPP), yes)
 	./build_infrastructure/download_prebuilt.sh
 	@echo "Preparation finished. NOTE: prebuilt IPP Crypto libraries downloaded."
@@ -71,7 +72,6 @@ else
 	./build_infrastructure/download_prebuilt.sh no_prebuilt_ipp
 	@echo "Preparation finished. NOTE: IPP Crypto libraries need to be built from source. Run 'make ipp' to build them or use one of the '*_from_source' targets."
 endif
-	cd external/libcxxrt/libcxxrt_code && git apply ../sgx_libcxxrt.patch >/dev/null 2>&1 || git apply ../sgx_libcxxrt.patch --check -R
 
 dcap_prebuilts:
 	./build_infrastructure/download_prebuilt_dcap.sh

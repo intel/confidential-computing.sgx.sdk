@@ -366,16 +366,5 @@ SGX_IPP_INC     := $(SGX_IPP_DIR)/inc
 IPP_LIBS_DIR    := $(SGX_IPP_DIR)/lib/linux/intel64/$(IPP_SUBDIR)
 LD_IPP          := -lippcp
 
-######## SGX SDK Settings ########
-SGX_SDK ?= /opt/intel/sgxsdk
-SGX_HEADER_DIR ?= $(SGX_SDK)/include
-
-ifeq ($(ARCH), x86)
-    SGX_COMMON_CFLAGS := -m32
-    SGX_LIB_DIR := $(SGX_SDK)/lib
-    SGX_BIN_DIR := $(SGX_SDK)/bin/x86
-else
-    SGX_COMMON_CFLAGS := -m64
-    SGX_LIB_DIR := $(SGX_SDK)/lib64/$(MITIGATION_LIB_PATH)
-    SGX_BIN_DIR := $(SGX_SDK)/bin/x64
-endif
+######## SGX SDK Settings (source layout) ########
+SGX_HEADER_DIR := $(ROOT_DIR)/sdk/include
