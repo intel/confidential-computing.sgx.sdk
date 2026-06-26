@@ -5,6 +5,20 @@ on:
     branches: [ "main*", "release*", "platform/*" ]
   pull_request:
     branches: [ "main*", "release*", "platform/*" ]
+  workflow_dispatch:
+    inputs:
+      use_ccache:
+        description: "Use ccache compiler cache (uncheck to build cold, e.g. when debugging a suspected cache issue)"
+        type: boolean
+        default: true
+      purge_ccache:
+        description: "Purge ccache (skip restore, build from empty, then save a fresh cache that supersedes the old one)"
+        type: boolean
+        default: false
+      parallel_build:
+        description: "Parallel build with -j$(nproc) (uncheck to build serially, e.g. for readable error ordering when diagnosing a failure)"
+        type: boolean
+        default: true
 
 permissions:
   actions: read
@@ -17,13 +31,35 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # ccache state lives in the workspace so actions/cache can persist it.
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  # Sized for full coverage (Make + CMake sub-builds ~0.8G/build over 3 mitigation
+  # flavors) with headroom for warm entries, while staying under the ~10G repo budget.
+  CCACHE_MAXSIZE: "5G"
+  # Hash compiler contents (not mtime/path) so masqueraded/distro compilers stay cache-correct.
+  CCACHE_COMPILERCHECK: content
+  # Path-independent hits: rewrite absolute paths under the workspace to relative
+  # and don't hash the build dir, so objects stay reusable across runners/checkouts.
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_NOHASHDIR: "true"
+  # Ignore __DATE__/__TIME__ macros (used by ippcp/openmp) so those still cache-hit.
+  CCACHE_SLOPPINESS: time_macros
+  # Defaults for push/PR (ccache on, no purge); the "Resolve ccache options"
+  # step overrides these for manual workflow_dispatch runs.
+  CCACHE_ENABLED: "true"
+  CCACHE_PURGE: "false"
+  # Computed in "Resolve ccache options"; declared here so the save step's
+  # env.CCACHE_KEY reference resolves for static analysis.
+  CCACHE_KEY: ""
+
 jobs:
   build:
     name: "SGX SDK build"
     runs-on: ${{ vars.RUNNER_CI_BUILD || 'ubuntu-latest' }}
 
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
       with:
         submodules: recursive
         token: ${{ secrets.ALL_REPO_CONTENTS_READ_PAT || github.token }}
@@ -47,10 +83,110 @@ jobs:
           libssl-dev \
           cmake \
           perl \
-          file
+          file \
+          ccache
+
+    - name: Resolve ccache options
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Default: ccache on. Only a manual workflow_dispatch can opt out / purge.
+        enabled=true
+        purge=false
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          enabled="${{ inputs.use_ccache }}"
+          purge="${{ inputs.purge_ccache }}"
+        fi
+        echo "CCACHE_ENABLED=$enabled" >> "$GITHUB_ENV"
+        echo "CCACHE_PURGE=$purge"     >> "$GITHUB_ENV"
+
+        # Commit-scoped save key (one entry per commit, no per-run churn). On purge
+        # we suffix the run id so the post-purge save creates a fresh newest entry
+        # (restore-keys prefer the most recent), instead of colliding with the stale
+        # same-commit entry and no-op'ing.
+        save_key="ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}"
+        [ "$purge" = "true" ] && save_key="${save_key}-purge-${{ github.run_id }}"
+        echo "CCACHE_KEY=$save_key" >> "$GITHUB_ENV"
+        echo "ccache: enabled=$enabled purge=$purge key=$save_key"
+
+    # Commit-scoped key (one cache entry per commit, not per run -> avoids churn).
+    # restore-keys fall back to the newest entry on the same branch, then the PR's
+    # base branch, then any branch, so a fresh commit / PR warm-starts from main's
+    # cache. A rerun of the same commit simply reuses its entry (save no-ops).
+    - name: Restore ccache
+      id: restore_ccache
+      if: env.CCACHE_ENABLED == 'true' && env.CCACHE_PURGE != 'true'
+      uses: actions/cache/restore@2c8a9bd7457de244a408f35966fab2fb45fda9c8  # v6.0.0
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+        restore-keys: |
+          ccache-${{ runner.os }}-${{ github.ref_name }}-
+          ccache-${{ runner.os }}-${{ github.base_ref }}-
+          ccache-${{ runner.os }}-
+
+    - name: Enable ccache for the build
+      if: env.CCACHE_ENABLED == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        ccache --version | head -n 1
+        # The Make-based parts of the SDK pick up ccache via the PATH masquerade
+        # (or CC/CXX wrappers as a fallback). Prefer the masquerade as it's transparent.
+        if [ -x /usr/lib/ccache/gcc ] && [ -x /usr/lib/ccache/g++ ]; then
+          echo "/usr/lib/ccache" >> "$GITHUB_PATH"
+          echo "ccache: using PATH masquerade (/usr/lib/ccache)"
+        else
+          echo "CC=ccache gcc" >> "$GITHUB_ENV"
+          echo "CXX=ccache g++" >> "$GITHUB_ENV"
+          echo "ccache: masquerade dir absent; using CC/CXX wrappers"
+        fi
+        # The CMake sub-builds (IPP crypto, protobuf, abseil, openmp) resolve the
+        # compiler to an absolute path (/usr/bin/cc) and bake it in, which bypasses
+        # the PATH masquerade. A compiler launcher wraps ccache around whatever
+        # compiler CMake resolved, so those (the bulk of the compiles) get cached too.
+        echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
+        echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
+        ccache -z   # zero stats so this run's hit/miss numbers are self-contained
 
     - name: Build SGX SDK (x64 install package = Linux)
-      run: make preparation; make sdk_install_pkg
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Parallel by default; only a manual workflow_dispatch can force a serial
+        # build (handy for readable error ordering when diagnosing a failure).
+        jobs="-j$(nproc)"
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.parallel_build }}" != "true" ]; then
+          jobs=""
+        fi
+        echo "make jobs: ${jobs:-serial}"
+        # 'preparation' stays serial: it does git submodule / patch work.
+        make preparation
+        make $jobs sdk_install_pkg
+
+    - name: ccache statistics
+      if: always() && env.CCACHE_ENABLED == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        {
+          echo "### ccache statistics"
+          echo '```'
+          ccache -s
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+        ccache -s
+
+    # Skip the save on an exact-key restore hit (e.g. a same-commit re-run): the
+    # entry already exists and cache keys are immutable, so a save would only emit
+    # a benign "unable to reserve" warning. restore-key (partial) hits leave
+    # cache-hit != 'true', so a fresh commit still saves its new entry.
+    - name: Save ccache
+      if: always() && env.CCACHE_ENABLED == 'true' && steps.restore_ccache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@2c8a9bd7457de244a408f35966fab2fb45fda9c8  # v6.0.0
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_KEY }}
 
     - name: Adjust output artifact name and add provenance disclaimer
       shell: bash
@@ -79,7 +215,7 @@ jobs:
         echo "⚠️ This CI workflow is only smoke testing the build pipeline; artifact outputs are not production-ready." >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload the output artifact (SDK installer)
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
       with:
         name: sdk_installer-ci-preview
         path: |
