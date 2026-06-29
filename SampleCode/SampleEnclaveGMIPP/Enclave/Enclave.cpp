@@ -443,25 +443,25 @@ int ecall_sm2_sign_verify(void)
 static int sm2_compute_hash(Ipp8u* hash_data, const char* message)
 {
 	int ctxSize = 0;
-	IppsSM3State* pSM3 = NULL;
+	IppsHashState_rmf* pSM3 = NULL;
 	IppStatus status = ippStsNoErr;
 	int ret = 0;
 
 	do {
 		//1. Initialize
-		status = ippsSM3GetSize(&ctxSize);
+		status = ippsHashGetSize_rmf(&ctxSize);
 		if (status != ippStsNoErr) {
 			printf("Error: fail to get size of SM3 context\n");
 			ret = -1;
 			break;
 		}
-		pSM3 = (IppsSM3State*)(malloc(ctxSize));
+		pSM3 = (IppsHashState_rmf *)(malloc(ctxSize));
 		if (pSM3 == NULL) {
 			printf("Error: fail to allocate memory for SM3 context\n");
 			ret = -2;
 			break;
 		}
-		status = ippsSM3Init(pSM3);
+		status = ippsHashInit_rmf(pSM3, ippsHashMethod_SM3());
 		if (status != ippStsNoErr) {
 			printf("Error: fail to initialize SM3 context\n");
 			ret = -3;
@@ -469,13 +469,13 @@ static int sm2_compute_hash(Ipp8u* hash_data, const char* message)
 		}
 
 		// 2. Compute
-		status = ippsSM3Update((const Ipp8u*)message, strlen((char*)message), pSM3);
+		status = ippsHashUpdate_rmf((const Ipp8u *)message, strlen((char *)message), pSM3);
 		if (status != ippStsNoErr) {
 			printf("Error: fail to digest the message of specified length\n");
 			ret = -4;
 			break;
 		}
-		status = ippsSM3Final(hash_data, pSM3);
+		status = ippsHashFinal_rmf(hash_data, pSM3);
 		if (status != ippStsNoErr) {
 			printf("Error: fail to complete computation of the SM3 digest value\n");
 			ret = -5;
@@ -882,7 +882,7 @@ int ecall_sm2_encrypt_decrypt_gm(void)
 int ecall_sm3(void)
 {
 	int ctxSize = 0;
-	IppsSM3State* pSM3 = NULL;
+	IppsHashState_rmf* pSM3 = NULL;
 	IppStatus status = ippStsNoErr;
 	unsigned char msg[] = "this is a test message";
 	unsigned char digest[32] = "";
@@ -892,7 +892,7 @@ int ecall_sm3(void)
 	do {
 		// 1. Init
 		// Get size of the SM3 context
-		status = ippsSM3GetSize(&ctxSize);
+		status = ippsHashGetSize_rmf(&ctxSize);
 		if (status != ippStsNoErr) {
 			printf("Error: fail to get size of SM3 context\n");
 			ret = -1;
@@ -900,7 +900,7 @@ int ecall_sm3(void)
 		}
 
 		// Allocate the SM3 context
-		pSM3 = (IppsSM3State*)(malloc(ctxSize));
+		pSM3 = (IppsHashState_rmf *)(malloc(ctxSize));
 		if (pSM3 == NULL) {
 			printf("Error: fail to allocate memory for SM3 context\n");
 			ret = -2;
@@ -908,7 +908,7 @@ int ecall_sm3(void)
 		}
 
 		// Initialize the SM3 context
-		status = ippsSM3Init(pSM3);
+		status = ippsHashInit_rmf(pSM3, ippsHashMethod_SM3());
 		if (status != ippStsNoErr) {
 			printf("Error: fail to initialize SM3 context\n");
 			ret = -3;
@@ -917,7 +917,7 @@ int ecall_sm3(void)
 
 		// 2. Update
 		// Digest the message of specified length
-		status = ippsSM3Update(msg, strlen((char*)msg), pSM3);
+		status = ippsHashUpdate_rmf(msg, strlen((char *)msg), pSM3);
 		if (status != ippStsNoErr) {
 			printf("Error: fail to digest the message of specified length\n");
 			ret = -4;
@@ -926,7 +926,7 @@ int ecall_sm3(void)
 
 		// 3. GetTag
 		// Compute current SM3 digest value of the processed part of the message
-		status = ippsSM3GetTag(tag, sizeof(tag), pSM3);
+		status = ippsHashGetTag_rmf(tag, sizeof(tag), pSM3);
 		if (status != ippStsNoErr) {
 			printf("Error: fail to compute current SM3 digest value of the processed part of the message\n");
 			ret = -5;
@@ -935,7 +935,7 @@ int ecall_sm3(void)
 
 		// 4. Final
 		// Complete computation of the SM3 digest value
-		status = ippsSM3Final(digest, pSM3);
+		status = ippsHashFinal_rmf(digest, pSM3);
 		if (status != ippStsNoErr) {
 			printf("Error: fail to complete computation of the SM3 digest value\n");
 			ret = -6;
