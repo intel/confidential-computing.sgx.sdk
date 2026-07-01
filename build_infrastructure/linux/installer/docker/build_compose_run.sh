@@ -17,10 +17,14 @@ sd_stage_local_artifacts && trap 'sd_cleanup_local_artifacts' EXIT INT TERM
 STAGE="${1:-all}"
 case "$STAGE" in
     build|run|all) ;;
-    *) echo "usage: $0 [build|run|all]" >&2; exit 2 ;;
+    *) echo "usage: $0 [build|run|all] [tries]" >&2; exit 2 ;;
 esac
 
-build_images() {
+# Number of build attempts (2nd arg; default 1 = a single try, no retry). CI passes a higher count
+# (e.g. 3) to absorb transient network/registry hiccups; each image is retried independently.
+BUILD_TRIES=$(sd_tries "${2:-1}")
+
+build_sample_image() {
     trace_run docker build --target sample --build-arg https_proxy \
               --build-arg http_proxy \
               --build-arg SGX_MODE=$SGX_MODE \
@@ -32,16 +36,25 @@ build_images() {
               --build-arg SAMPLE_EXTRA_RUNTIME_PACKAGES="$SAMPLE_EXTRA_RUNTIME_PACKAGES" \
               $SGX_VERSION_ARG \
               -t sgx_sample -f ./Dockerfile ./
+}
+
+build_aesm_image() {
+    trace_run docker build --target aesm --build-arg https_proxy \
+              --build-arg http_proxy \
+              --build-arg QUOTE_PROVIDER="$QUOTE_PROVIDER" \
+              --build-arg COLLATERAL_PROVIDER="$COLLATERAL_PROVIDER" \
+              --build-arg INSTALL_DCAP_QPL="$INSTALL_DCAP_QPL" \
+              --build-arg AESM_QPL_LOG_LEVEL="${AESM_QPL_LOG_LEVEL:-}" \
+              $SGX_VERSION_ARG -t sgx_aesm -f ./Dockerfile ./
+}
+
+build_images() {
+    sd_retry "$BUILD_TRIES" build_sample_image
 
     # Out-of-process quoting (HW + USE_AESM) also needs a separate AESM image; SIM and in-process
     # quoting do not.
     if [ "$SGX_MODE" != "SIM" ] && [ "$USE_AESM" = "1" ]; then
-        trace_run docker build --target aesm --build-arg https_proxy \
-              --build-arg http_proxy \
-                  --build-arg QUOTE_PROVIDER="$QUOTE_PROVIDER" \
-                  --build-arg COLLATERAL_PROVIDER="$COLLATERAL_PROVIDER" \
-                  --build-arg INSTALL_DCAP_QPL="$INSTALL_DCAP_QPL" \
-                  $SGX_VERSION_ARG -t sgx_aesm -f ./Dockerfile ./
+        sd_retry "$BUILD_TRIES" build_aesm_image
     fi
 }
 

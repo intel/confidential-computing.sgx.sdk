@@ -10,9 +10,10 @@
 # local-artifact staging. The docker build/run invocation stays in each calling script.
 #
 # Resolved outputs (in the sourcing shell): SGX_VERSION_ARG,
-# SGX_OVERRIDE_SDK_INSTALLER_PATH, SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH.
-# Provides: sd_die(), trace_run(), compose_cmd(), sd_gid(), sd_group_add_flags(),
-# sd_export_gid(), sd_stage_local_artifacts(), sd_cleanup_local_artifacts().
+# SGX_OVERRIDE_SDK_INSTALLER_PATH, SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH,
+# SGX_OVERRIDE_LOCAL_PACKAGES_TGZ_PATH.
+# Provides: sd_die(), trace_run(), sd_tries(), sd_retry(), compose_cmd(), sd_gid(),
+# sd_group_add_flags(), sd_export_gid(), sd_stage_local_artifacts(), sd_cleanup_local_artifacts().
 
 # Abort the sourcing script.
 sd_die() { printf 'ERROR: %s\n' "$*" >&2; return 1 2>/dev/null || exit 1; }
@@ -21,6 +22,32 @@ sd_die() { printf 'ERROR: %s\n' "$*" >&2; return 1 2>/dev/null || exit 1; }
 trace_run() {
     printf '+ %s\n' "$*" >&2
     "$@"
+}
+
+# Validate/normalize a "number of tries" value: a positive integer, defaulting to 1 (a single try,
+# i.e. no retry). Echoes the sanitized count. Usage: TRIES=$(sd_tries "$1")
+sd_tries() {
+    case "$1" in
+        ''|*[!0-9]*) printf '1' ;;
+        0)           printf '1' ;;
+        *)           printf '%s' "$1" ;;
+    esac
+}
+
+# Run a command with up to $1 total attempts (see sd_tries), returning success on the first that
+# succeeds and the last attempt's exit code otherwise. A stop-gap for flaky network/registry hiccups
+# during `docker build`; wrap each build step individually so only the failed one is retried. Usage:
+#   sd_retry "$BUILD_TRIES" build_sample_image
+sd_retry() {
+    sd_r_tries=$(sd_tries "$1"); shift
+    sd_r_n=1
+    while : ; do
+        "$@" && return 0
+        sd_r_rc=$?
+        [ "$sd_r_n" -ge "$sd_r_tries" ] && return "$sd_r_rc"
+        echo "WARNING: attempt $sd_r_n/$sd_r_tries of '$1' failed (rc=$sd_r_rc); retrying..." >&2
+        sd_r_n=$((sd_r_n + 1))
+    done
 }
 
 # Run docker compose, supporting both v2 ("docker compose") and v1 ("docker-compose").
@@ -69,17 +96,23 @@ esac
 SGX_VERSION_ARG=${SGX_VERSION:+--build-arg SGX_VERSION=$SGX_VERSION}
 
 # --- Optional local SDK/repo artifacts ---------------------------------------------------------
-# Host paths to an SDK installer .bin / a sgx_debian_local_repo.tgz; empty keeps the 01.org default.
+# Host paths to override / augment the live 01.org sources; empty keeps the 01.org default:
+#   SGX_OVERRIDE_SDK_INSTALLER_PATH       -- an SDK installer .bin (replaces the downloaded SDK)
+#   SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH      -- a sgx_debian_local_repo.tgz (full apt repo; replaces 01.org)
+#   SGX_OVERRIDE_LOCAL_PACKAGES_TGZ_PATH  -- a FLAT bundle of loose .deb files, layered local-first on
+#                                            top of whichever repo is active (see Dockerfile [1.5])
 SGX_OVERRIDE_SDK_INSTALLER_PATH="${SGX_OVERRIDE_SDK_INSTALLER_PATH:-}"
 SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH="${SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH:-}"
+SGX_OVERRIDE_LOCAL_PACKAGES_TGZ_PATH="${SGX_OVERRIDE_LOCAL_PACKAGES_TGZ_PATH:-}"
 
 # Stage the optional local artifacts into _sgx_local_artifacts/ (tracked dir with a .keep sentinel)
 # for the Dockerfile COPY. Clear stale files first, then copy. Call once knobs are validated.
 sd_stage_local_artifacts() {
     mkdir -p ./_sgx_local_artifacts
     find ./_sgx_local_artifacts -not -name '.keep' -not -type d -delete 2>/dev/null || true
-    [ -n "$SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH" ] && cp -- "$SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH" ./_sgx_local_artifacts/repo.tgz
-    [ -n "$SGX_OVERRIDE_SDK_INSTALLER_PATH" ]  && cp -- "$SGX_OVERRIDE_SDK_INSTALLER_PATH"  ./_sgx_local_artifacts/sdk_installer.bin
+    [ -n "$SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH" ]     && cp -- "$SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH"     ./_sgx_local_artifacts/repo.tgz
+    [ -n "$SGX_OVERRIDE_SDK_INSTALLER_PATH" ]      && cp -- "$SGX_OVERRIDE_SDK_INSTALLER_PATH"      ./_sgx_local_artifacts/sdk_installer.bin
+    [ -n "$SGX_OVERRIDE_LOCAL_PACKAGES_TGZ_PATH" ] && cp -- "$SGX_OVERRIDE_LOCAL_PACKAGES_TGZ_PATH" ./_sgx_local_artifacts/packages.tgz
     return 0
 }
 

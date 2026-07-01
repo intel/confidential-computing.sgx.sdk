@@ -12,17 +12,27 @@ set -e
 QUOTE_PROVIDER="${QUOTE_PROVIDER:-dcap_aesm}"
 INSTALL_DCAP_QPL="${INSTALL_DCAP_QPL:-1}"
 COLLATERAL_PROVIDER="${COLLATERAL_PROVIDER:-pccs-host}"
+# Optional AESM QPL log level (empty keeps the package default); see the build-args table in README.md.
+AESM_QPL_LOG_LEVEL="${AESM_QPL_LOG_LEVEL:-}"
 
 # Shared local-artifact helpers: resolve SGX_VERSION_ARG + SGX_OVERRIDE_* and stage them; see README.md.
 . "$(dirname "$0")/helpers/common-defaults.sh"
 sd_stage_local_artifacts && trap 'sd_cleanup_local_artifacts' EXIT INT TERM
 
-docker build --target aesm --build-arg https_proxy=$https_proxy \
-             --build-arg http_proxy=$http_proxy \
-             --build-arg QUOTE_PROVIDER="$QUOTE_PROVIDER" \
-             --build-arg INSTALL_DCAP_QPL="$INSTALL_DCAP_QPL" \
-             --build-arg COLLATERAL_PROVIDER="$COLLATERAL_PROVIDER" \
-             $SGX_VERSION_ARG -t sgx_aesm -f ./Dockerfile ./
+# Number of build attempts (1st arg; default 1 = a single try, no retry). CI passes a higher count
+# (e.g. 3) to absorb transient network/registry hiccups; only the build retries, not the run.
+BUILD_TRIES=$(sd_tries "${1:-1}")
+
+build_aesm_image() {
+    trace_run docker build --target aesm --build-arg https_proxy=$https_proxy \
+                           --build-arg http_proxy=$http_proxy \
+                           --build-arg QUOTE_PROVIDER="$QUOTE_PROVIDER" \
+                           --build-arg INSTALL_DCAP_QPL="$INSTALL_DCAP_QPL" \
+                           --build-arg COLLATERAL_PROVIDER="$COLLATERAL_PROVIDER" \
+                           --build-arg AESM_QPL_LOG_LEVEL="$AESM_QPL_LOG_LEVEL" \
+                           $SGX_VERSION_ARG -t sgx_aesm -f ./Dockerfile ./
+}
+sd_retry "$BUILD_TRIES" build_aesm_image
 
 docker volume create --driver local --opt type=tmpfs --opt device=tmpfs --opt o=rw aesmd-socket
 

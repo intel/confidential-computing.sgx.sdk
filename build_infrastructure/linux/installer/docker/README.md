@@ -52,6 +52,7 @@ The run scripts (`build_compose_run.sh`, `build_and_run_sample_docker.sh`) and `
 - `INSTALL_DCAP_QVL` — install the [DCAP](https://github.com/intel/confidential-computing.tee.dcap) Quote Verification Library (verify a peer quote). Default `1` for `SampleAttestedTLS`, else `0`.
 - `SAMPLE_EXTRA_RUNTIME_PACKAGES` — extra non-SGX apt packages a sample needs to *run* (space-separated). Default `make` for `SampleAttestedTLS`, empty otherwise.
 - `USE_AESM` — bring up / attach the AESM. Defaults to `1` when `QUOTE_PROVIDER` is out-of-process (`aesm_universal` / `dcap_aesm`), else `0`. Also required for the [legacy Launch Enclave driver](#legacy-launch-control-driver-and-kernel-for-sgx).
+- `AESM_QPL_LOG_LEVEL` — AESM-only debug aid: sets the QPL log level (`error` / `info`) in the sidecar's `aesmd.conf` to trace PCK-collateral fetches. Empty (default) keeps the package setting. Forwarded to the `aesm` image by `build_compose_run.sh` and `build_and_run_aesm_docker.sh`.
 
 ## Dockerfile
 
@@ -61,7 +62,7 @@ The [Dockerfile](Dockerfile) is multi-stage and **downloads** prebuilt SGX packa
 
 Two stages are meant to be built as `--target`; the rest are shared or intermediate:
 
-- `sgxbase` *(base)* — Ubuntu 22.04 plus the Intel SGX APT repo (the live 01.org repo, or a staged local one). Shared by every other stage.
+- `sgxbase` *(base)* — Ubuntu 24.04 plus the Intel SGX APT repo (the live 01.org repo, or a staged local one). Shared by every other stage.
 - `build_env` *(intermediate)* — `sgxbase` + `build-essential` + the SGX SDK. Sample-independent, so it caches once and is reused across all samples and modes.
 - `sgx_sample_builder` *(intermediate)* — builds `SAMPLE_NAME` and stages its runtime artifacts into a clean tree.
 - **`sample`** *(target)* — the runnable sample image: runtime SGX libraries + staged artifacts, run as an unprivileged user.
@@ -83,6 +84,7 @@ Every knob is a `--build-arg` with a per-sample default supplied by the run scri
 | `INSTALL_DCAP_QPL` | `0` | `sample`, `aesm` | Install the DCAP Quote Provider Library (fetch PCK collateral from a PCCS). |
 | `COLLATERAL_PROVIDER` | `pccs-host` | `sample`, `aesm` | QCNL config activated when the QPL is installed: `pcs` / `pccs-host` / `pccs-container`. |
 | `PCCS_HOST_URL` | `https://host.docker.internal:8081/...` | `sample`, `aesm` | PCCS endpoint baked into the `pccs-host` QCNL config. |
+| `AESM_QPL_LOG_LEVEL` | *(empty)* | `aesm` | Set the QPL log level in `aesmd.conf` (`error` / `info`) to trace PCK-collateral fetches; empty keeps the package default. |
 
 ##### Using local prebuilts
 
@@ -90,6 +92,7 @@ To use locally staged SGX artifacts instead of downloading from 01.org, export t
 
 - `SGX_OVERRIDE_SDK_INSTALLER_PATH` — host path to an SDK installer (`sgx_linux_x64_sdk_*.bin`), used instead of downloading from the `SGX_VERSION` release tree.
 - `SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH` — host path to a `sgx_debian_local_repo.tgz` (from 01.org distro dirs, or `make deb_local_repo`), used instead of the live 01.org APT repo. The `SGX_VERSION` apt pin is skipped automatically (the tgz already pins versions).
+- `SGX_OVERRIDE_LOCAL_PACKAGES_TGZ_PATH` — host path to a flat `packages.tgz` bundle of loose `.deb` files (not a full apt repo). It is layered on top of whichever repo above is active, as a dpkg-scanned local source pinned above everything (Origin `sgx-local-pkgs`, priority 1001), so its packages win while anything it lacks still resolves from the base repo.
 
 ### Compose stack and profiles
 

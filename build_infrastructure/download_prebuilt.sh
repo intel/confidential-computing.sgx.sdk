@@ -47,13 +47,13 @@ if [ $? -ne 0 ]; then
     exit -1
 fi
 if [ "$1" = "no_prebuilt_ipp" ]; then
-    tar -zxf $optlib_name --exclude='external/ippcp_internal/*'
+    tar -zxf "$optlib_name" --exclude='external/ippcp_internal/*'
 else
-    tar -zxf $optlib_name
+    tar -zxf "$optlib_name"
 fi
-tar -zxf $binutils_file_name
-rm -f $optlib_name
-rm -f $checksum_file
-rm -f $binutils_file_name
+tar --no-same-owner --no-same-permissions -zxf "$binutils_file_name"
+rm -f "$optlib_name"
+rm -f "$checksum_file"
+rm -f "$binutils_file_name"
 
 popd

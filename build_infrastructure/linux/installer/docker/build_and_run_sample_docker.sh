@@ -20,8 +20,12 @@ sd_stage_local_artifacts && trap 'sd_cleanup_local_artifacts' EXIT INT TERM
 STAGE="${1:-all}"
 case "$STAGE" in
     build|run|all) ;;
-    *) echo "usage: $0 [build|run|all]" >&2; exit 2 ;;
+    *) echo "usage: $0 [build|run|all] [tries]" >&2; exit 2 ;;
 esac
+
+# Number of build attempts (2nd arg; default 1 = a single try, no retry). CI passes a higher count
+# (e.g. 3) to absorb transient network/registry hiccups.
+BUILD_TRIES=$(sd_tries "${2:-1}")
 
 build_image() {
     trace_run docker build --target sample --build-arg https_proxy \
@@ -54,7 +58,7 @@ run_sample() {
 }
 
 case "$STAGE" in
-    build) build_image ;;
+    build) sd_retry "$BUILD_TRIES" build_image ;;
     run)   run_sample ;;
-    all)   build_image; run_sample ;;
+    all)   sd_retry "$BUILD_TRIES" build_image; run_sample ;;
 esac

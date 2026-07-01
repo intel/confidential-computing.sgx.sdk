@@ -12,7 +12,7 @@
 ARG SDK_INSTALL_DIR=/opt/intel
 
 # ===== Stage 1/4: sgxbase -- common base that wires up the Intel SGX apt source =====
-FROM ubuntu:22.04 AS sgxbase
+FROM ubuntu:24.04 AS sgxbase
 # [1.1] Install fetch tools (ca-certificates/gnupg/wget) for the repo key + SDK installer.
 RUN apt-get update && apt-get install -y \
     ca-certificates \
@@ -21,9 +21,12 @@ RUN apt-get update && apt-get install -y \
 
 # [1.2] Stage optional local override artifacts into the build (empty by default).
 # _sgx_local_artifacts/ is a transient staging dir (created/removed by the build scripts; empty = none).
-# It may hold two optional files that override the live 01.org sources:
-#   repo.tgz          -- sgx_debian_local_repo.tgz (replaces the live apt repo)
+# It may hold these optional files that override / augment the live 01.org sources:
+#   repo.tgz          -- sgx_debian_local_repo.tgz (replaces the live apt repo, a full apt repo)
 #   sdk_installer.bin -- sgx_linux_x64_sdk_*.bin   (replaces the downloaded SDK)
+#   packages.tgz      -- a FLAT bundle of loose .deb files (NOT a full apt repo); layered on top of
+#                        whichever repo above is active so its packages win, with anything missing
+#                        (e.g. DCAP) still resolved from that repo. See [1.5].
 COPY _sgx_local_artifacts/ /tmp/sgx_local_artifacts/
 
 # [1.3] Set up the SGX apt repository: default to the live 01.org repo, or a staged local repo.tgz.
@@ -37,7 +40,7 @@ RUN if [ ! -f /tmp/sgx_local_artifacts/repo.tgz ]; then \
       # Staged repo.tgz: extract and use it as a local apt repo (trusted=yes, no network/key).
       # Distro codename comes from the base image (VERSION_CODENAME).
       mkdir -p /opt/intel-sgx-local-repo && \
-      tar -xzf /tmp/sgx_local_artifacts/repo.tgz -C /opt/intel-sgx-local-repo && \
+      tar --no-same-owner --no-same-permissions -xzf /tmp/sgx_local_artifacts/repo.tgz -C /opt/intel-sgx-local-repo && \
       . /etc/os-release && \
       repo_release=$(find /opt/intel-sgx-local-repo -type f -path "*/dists/${VERSION_CODENAME}/Release" | head -n1) && \
       [ -n "$repo_release" ] || { echo "ERROR: local repo tgz has no dists/${VERSION_CODENAME}/Release (wrong distro?)" >&2; exit 1; } && \
@@ -57,6 +60,31 @@ ARG SGX_VERSION=
 RUN [ -n "$SGX_VERSION" ] && [ ! -f /tmp/sgx_local_artifacts/repo.tgz ] && \
     printf 'Package: libsgx-* sgx-*\nPin: version %s.*\nPin-Priority: 1001\n' "$SGX_VERSION" \
         > /etc/apt/preferences.d/intel-sgx.pref || true
+
+# [1.5] Optional FLAT local package set (packages.tgz): a loose bundle of .deb files (NOT a full apt
+# repo). Build a tiny flat file: apt repo from it, tagged with a distinct Origin (sgx-local-pkgs),
+# and pin that Origin above everything (priority 1001, allows same/older/newer) so freshly-built
+# local packages always win. The base repo from [1.3] stays in place, so anything the bundle does
+# NOT carry (e.g. DCAP -dev/runtime libs) still resolves from there -- i.e. "install local first,
+# then pull what's missing from the remote". dpkg-dev/apt-utils are pulled in only on this path, so
+# the default (no bundle) image stays slim.
+RUN if [ -f /tmp/sgx_local_artifacts/packages.tgz ]; then \
+      apt-get install -y --no-install-recommends dpkg-dev apt-utils && \
+      mkdir -p /opt/intel-sgx-local-pkgs && \
+      tar --no-same-owner --no-same-permissions -xzf /tmp/sgx_local_artifacts/packages.tgz -C /opt/intel-sgx-local-pkgs && \
+      ( cd /opt/intel-sgx-local-pkgs && \
+        dpkg-scanpackages -m . > Packages && \
+        apt-ftparchive -o APT::FTPArchive::Release::Origin=sgx-local-pkgs release . > Release ) && \
+      echo "deb [trusted=yes arch=amd64] file:/opt/intel-sgx-local-pkgs ./" \
+        > /etc/apt/sources.list.d/intel-sgx-local-pkgs.list && \
+      printf 'Package: *\nPin: release o=sgx-local-pkgs\nPin-Priority: 1001\n' \
+        > /etc/apt/preferences.d/intel-sgx-local-pkgs.pref && \
+      apt-get update \
+        -o APT::Sandbox::User=root \
+        -o Dir::Etc::sourcelist="sources.list.d/intel-sgx-local-pkgs.list" \
+        -o Dir::Etc::sourceparts="-" \
+        -o APT::Get::List-Cleanup="0"; \
+    fi
 
 # ===== Stage 2/4: build_env -- download + install the SDK (sample-independent, cached) =====
 FROM sgxbase AS build_env
@@ -172,7 +200,7 @@ ARG SAMPLE_NAME=SampleEnclave
 ARG QUOTE_PROVIDER=none
 # Add the Quote Verification Library.
 ARG INSTALL_DCAP_QVL=0
-# Add the Quote Provider Library (here only for dcap_in_proc).
+# Add the Quote Provider Library (Note: for 'dcap_in_proc' provider it's not used for quoting, but the verification side still needs the collateral).
 ARG INSTALL_DCAP_QPL=0
 # Picks which generated qcnl conf QCNL_CONF_PATH targets.
 ARG COLLATERAL_PROVIDER=pccs-host
@@ -195,8 +223,8 @@ RUN apt-get install -y libsgx-urts && \
     # extra non-SGX run deps, then the optional quote-verify lib
     if [ -n "$SAMPLE_EXTRA_RUNTIME_PACKAGES" ]; then apt-get install -y $SAMPLE_EXTRA_RUNTIME_PACKAGES; fi && \
     if [ "$INSTALL_DCAP_QVL" = "1" ]; then apt-get install -y libsgx-dcap-quote-verify; fi && \
-    # QPL only for in-process DCAP (out-of-process carries it on the AESM):
-    if [ "$INSTALL_DCAP_QPL" = "1" ] && [ "$QUOTE_PROVIDER" = "dcap_in_proc" ]; then \
+    # Install the DCAP Quote Provider Library when requested (fetches PCK collateral from a PCCS):
+    if [ "$INSTALL_DCAP_QPL" = "1" ]; then \
         apt-get install -y libsgx-dcap-default-qpl && \
         # Generate /etc/sgx_qcnl/{pcs,pccs-host,pccs-container}.conf; QCNL_CONF_PATH (set below) selects which one is used.
         sh /usr/local/bin/gen-qcnl-confs.sh /etc/sgx_default_qcnl.conf /etc/sgx_qcnl "$PCCS_HOST_URL" && \
@@ -243,6 +271,8 @@ ARG INSTALL_DCAP_QPL=0
 ARG COLLATERAL_PROVIDER=pccs-host
 # Baked into the pccs-host conf (package default localhost is unreachable from the container).
 ARG PCCS_HOST_URL=https://host.docker.internal:8081/sgx/certification/v4/
+# Optional: raise the AESM's QPL log level in aesmd.conf (`error` (default) / `info`, a debug aid for PCK-collateral fetches); empty leaves the package default.
+ARG AESM_QPL_LOG_LEVEL=
 # QCNL PCK-collateral cache base (QPL only).
 ENV XDG_CACHE_HOME=/var/cache/sgx
 
@@ -267,7 +297,16 @@ RUN case "${QUOTE_PROVIDER}" in \
     fi && \
     rm -rf /var/lib/apt/lists/*
 
-# [A1.2] Set workdir + library path and launch aesm_service.
+# [A1.2] Optionally bump the QPL log level in aesmd.conf (off unless AESM_QPL_LOG_LEVEL is set).
+RUN if [ -n "$AESM_QPL_LOG_LEVEL" ]; then \
+        case "$AESM_QPL_LOG_LEVEL" in \
+            error|info) ;; \
+            *) echo "ERROR: AESM_QPL_LOG_LEVEL must be 'error' or 'info', got '$AESM_QPL_LOG_LEVEL'" >&2; exit 1 ;; \
+        esac && \
+        printf '\nqpl log level = %s\n' "$AESM_QPL_LOG_LEVEL" >> /etc/aesmd.conf; \
+    fi
+
+# [A1.3] Set workdir + library path and launch aesm_service.
 WORKDIR /opt/intel/sgx-aesm-service/aesm
 # Ensures the AESM libraries in this dir are found.
 ENV LD_LIBRARY_PATH=.

@@ -4,3 +4,4 @@ _sgx_local_artifacts/*
 !_sgx_local_artifacts/.keep
 !_sgx_local_artifacts/repo.tgz
 !_sgx_local_artifacts/sdk_installer.bin
+!_sgx_local_artifacts/packages.tgz

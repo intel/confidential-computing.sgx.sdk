@@ -41,12 +41,30 @@ on:
         required: false
         default: ''
 
+  # Reusable entry point: another workflow (e.g. the SDK build CI) can call this to exercise the
+  # SampleCode/ samples against its OWN freshly-built SDK + packages instead of the 01.org defaults,
+  # without duplicating the per-sample build/run logic. The standalone triggers above are unchanged.
+  workflow_call:
+    inputs:
+      sgx_version:
+        description: 'Optional 01.org release to pin (e.g. 2.29). Empty = rolling latest.'
+        required: false
+        type: string
+        default: ''
+      sdk_installer_artifact:
+        description: 'Name of an artifact (in the calling run) holding an sgx_linux_x64_sdk_*.bin to use instead of the 01.org download.'
+        required: false
+        type: string
+        default: ''
+      local_packages_artifact:
+        description: 'Name of an artifact (in the calling run) holding a FLAT *.tgz of loose .deb files, layered local-first over the 01.org repo.'
+        required: false
+        type: string
+        default: ''
+
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  actions: read
 
 env:
   # docker/build-context for every build in this workflow.
@@ -66,6 +84,9 @@ jobs:
   # HW samples must build and their run result must match policy (pass or expected-fail signature).
   # ---------------------------------------------------------------------------------------------
   samples:
+    concurrency:
+      group: samples-${{ matrix.sample }}-${{ matrix.mode }}-${{ matrix.compose }}-${{ github.workflow }}-${{ github.workflow_ref }}-${{ github.ref }}
+      cancel-in-progress: true
     # AttestedTLS is the only sample run two ways, so disambiguate its rows by quoting model:
     # compose=true -> with-aesm (out-of-process QE/PCE); compose=false -> in-proc QE/PCE.
     # Every other sample keeps just the mode.
@@ -101,14 +122,23 @@ jobs:
           # compose row: two patterns required — one from each service — proving both containers ran.
           #   expected_output:  AESM sidecar logged its device-less QE3 failure
           #   expected_output2: sample container hit the enclave device check
-          - { sample: SampleAttestedTLS, mode: HW, run: expected-fail, compose: true,  expected_exit: 2, expected_regex: true, expected_output: "aesm-nodev-1.*Failed to load QE3", expected_output2: "sample-sim-aesm-client-1.*Error: Invalid SGX device" } # with-aesm
-          - { sample: SampleAttestedTLS, mode: HW, run: expected-fail, compose: false, expected_exit: 2, expected_output: "Error: Invalid SGX device." } # in-proc
+          # No PCCS on CI runners, so both AttestedTLS rows point QCNL at Intel's public PCS (COLLATERAL_PROVIDER=pcs);
+          # The compose row also turns on AESM QPL 'info' logging to trace the sidecar's collateral fetch.
+          - { sample: SampleAttestedTLS, mode: HW, run: expected-fail, compose: true,  collateral_provider: pcs, aesm_qpl_log_level: info, expected_exit: 2, expected_regex: true, expected_output: "aesm-nodev-1.*Failed to load QE3", expected_output2: "sample-sim-aesm-client-1.*Error: Invalid SGX device" } # with-aesm
+          - { sample: SampleAttestedTLS, mode: HW, run: expected-fail, compose: false, collateral_provider: pcs, expected_exit: 2, expected_output: "Error: Invalid SGX device." } # in-proc
     env:
       # Inputs consumed by helpers/sample-defaults.sh (sourced by both helper scripts).
       SAMPLE_NAME: ${{ matrix.sample }}
       SGX_MODE: ${{ matrix.mode }}
+      # Per-row QCNL collateral source; empty rows fall back to sample-defaults.sh's default.
+      COLLATERAL_PROVIDER: ${{ matrix.collateral_provider }}
+      # Per-row AESM QPL log level (compose row only); empty leaves the image default.
+      AESM_QPL_LOG_LEVEL: ${{ matrix.aesm_qpl_log_level }}
+      # Build attempts the helper scripts make before failing (absorbs transient network/registry
+      # hiccups pulling prebuilt SGX packages). 1 would be a single try; CI retries.
+      CI_BUILD_TRIES: 3
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
 
@@ -125,6 +155,42 @@ jobs:
             *)
               ;;
           esac
+
+      # Optional local overrides (workflow_call only): pull the caller's freshly-built SDK installer
+      # and/or flat package bundle from the calling run's artifacts. The resolve step then points the
+      # SGX_OVERRIDE_* knobs (consumed by helpers/common-defaults.sh -> sd_stage_local_artifacts) at
+      # them, so the same helper scripts build against local-first artifacts instead of the 01.org
+      # defaults. Both are no-ops when the inputs are empty (the standalone triggers).
+      - name: Download local SDK installer override
+        if: ${{ inputs.sdk_installer_artifact != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: ${{ inputs.sdk_installer_artifact }}
+          path: _local_overrides/sdk
+
+      - name: Download local packages override
+        if: ${{ inputs.local_packages_artifact != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: ${{ inputs.local_packages_artifact }}
+          path: _local_overrides/packages
+
+      - name: Resolve local override paths
+        if: ${{ inputs.sdk_installer_artifact != '' || inputs.local_packages_artifact != '' }}
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.sdk_installer_artifact }}" ]; then
+            bin=$(ls -1 "$GITHUB_WORKSPACE"/_local_overrides/sdk/*.bin 2>/dev/null | head -n1 || true)
+            [ -n "$bin" ] || { echo "ERROR: no *.bin in artifact '${{ inputs.sdk_installer_artifact }}'" >&2; exit 1; }
+            echo "SGX_OVERRIDE_SDK_INSTALLER_PATH=$bin" >> "$GITHUB_ENV"
+            echo "Using local SDK installer override: $bin"
+          fi
+          if [ -n "${{ inputs.local_packages_artifact }}" ]; then
+            tgz=$(ls -1 "$GITHUB_WORKSPACE"/_local_overrides/packages/*.tgz 2>/dev/null | head -n1 || true)
+            [ -n "$tgz" ] || { echo "ERROR: no *.tgz in artifact '${{ inputs.local_packages_artifact }}'" >&2; exit 1; }
+            echo "SGX_OVERRIDE_LOCAL_PACKAGES_TGZ_PATH=$tgz" >> "$GITHUB_ENV"
+            echo "Using local packages override: $tgz"
+          fi
 
       # Pick the helper script the developer would run for this sample: the compose stack driver
       # for the DCAP sample, the single-container runner for everything else.
@@ -177,10 +243,11 @@ jobs:
           }
           echo "INFO: Docker Compose bootstrapped (${COMPOSE_VER})"
 
-      # Build stage: must succeed for every sample.
+      # Build stage: must succeed for every sample. Allow up to CI_BUILD_TRIES build attempts so a
+      # transient network/registry hiccup pulling prebuilt SGX packages doesn't fail the job.
       - name: Build sample image(s)
         working-directory: ${{ env.DOCKER_DIR }}
-        run: sh ${{ steps.script.outputs.name }} build
+        run: sh ${{ steps.script.outputs.name }} build "$CI_BUILD_TRIES"
 
       # Run stage (strict pass): e.g. SIM rows must succeed.
       - name: Run sample (expect pass)

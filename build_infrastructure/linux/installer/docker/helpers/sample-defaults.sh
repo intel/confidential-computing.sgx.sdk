@@ -13,7 +13,7 @@
 # Resolved outputs (exported in the sourcing shell): SAMPLE_NAME, SGX_MODE, QUOTE_PROVIDER,
 # COLLATERAL_PROVIDER, USE_AESM, INSTALL_DCAP_QPL, INSTALL_DCAP_QVL,
 # SAMPLE_EXTRA_RUNTIME_PACKAGES, SGX_VERSION_ARG, SGX_OVERRIDE_SDK_INSTALLER_PATH,
-# SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH.
+# SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH, SGX_OVERRIDE_LOCAL_PACKAGES_TGZ_PATH.
 #
 # Behavior: callers may pre-set knobs and this resolver applies those values when valid;
 # otherwise it picks per-sample defaults. INSTALL_DCAP_QPL is derived from
@@ -126,21 +126,24 @@ sd_sdk_src='<default from SGX_VERSION/latest>'
 [ -n "$SGX_OVERRIDE_SDK_INSTALLER_PATH" ] && sd_sdk_src='<set>'
 sd_repo_src='<default 01.org apt repo>'
 [ -n "$SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH" ] && sd_repo_src='<set>'
+sd_pkgs_src='<none>'
+[ -n "$SGX_OVERRIDE_LOCAL_PACKAGES_TGZ_PATH" ] && sd_pkgs_src='<set, local-first>'
 
 {
     printf '%s\n' '--- sample-defaults: resolved options ---'
     printf '  %-33s %s\n' \
-        'SAMPLE_NAME'                      "$SAMPLE_NAME" \
-        'SGX_MODE'                         "$SGX_MODE" \
-        'QUOTE_PROVIDER'                   "$QUOTE_PROVIDER" \
-        'COLLATERAL_PROVIDER'              "$COLLATERAL_PROVIDER" \
-        'USE_AESM'                         "$USE_AESM" \
-        'INSTALL_DCAP_QPL'                 "$INSTALL_DCAP_QPL" \
-        'INSTALL_DCAP_QVL'                 "$INSTALL_DCAP_QVL" \
-        'SAMPLE_EXTRA_RUNTIME_PACKAGES'    "${SAMPLE_EXTRA_RUNTIME_PACKAGES:-<none>}" \
-        'SGX_VERSION'                      "${SGX_VERSION:-<rolling latest>}" \
-        'SGX_OVERRIDE_SDK_INSTALLER_PATH'  "$sd_sdk_src" \
-        'SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH' "$sd_repo_src"
+        'SAMPLE_NAME'                          "$SAMPLE_NAME" \
+        'SGX_MODE'                             "$SGX_MODE" \
+        'QUOTE_PROVIDER'                       "$QUOTE_PROVIDER" \
+        'COLLATERAL_PROVIDER'                  "$COLLATERAL_PROVIDER" \
+        'USE_AESM'                             "$USE_AESM" \
+        'INSTALL_DCAP_QPL'                     "$INSTALL_DCAP_QPL" \
+        'INSTALL_DCAP_QVL'                     "$INSTALL_DCAP_QVL" \
+        'SAMPLE_EXTRA_RUNTIME_PACKAGES'        "${SAMPLE_EXTRA_RUNTIME_PACKAGES:-<none>}" \
+        'SGX_VERSION'                          "${SGX_VERSION:-<rolling latest>}" \
+        'SGX_OVERRIDE_SDK_INSTALLER_PATH'      "$sd_sdk_src" \
+        'SGX_OVERRIDE_LOCAL_REPO_TGZ_PATH'     "$sd_repo_src" \
+        'SGX_OVERRIDE_LOCAL_PACKAGES_TGZ_PATH' "$sd_pkgs_src"
     printf '%s\n' '-----------------------------------------'
 } >&2
 

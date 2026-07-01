@@ -37,7 +37,7 @@ if [ -d prebuilt ]; then
     rm -rf prebuilt
 fi
 
-tar -zxf "$prebuilt_file_name" prebuilt/openssl || { echo "Fail to extract $prebuilt_file_name"; exit 1; }
+tar --no-same-owner --no-same-permissions -zxf "$prebuilt_file_name" prebuilt/openssl || { echo "Fail to extract $prebuilt_file_name"; exit 1; }
 if ! { mkdir -p prebuilt/dcap && mv prebuilt/openssl prebuilt/dcap/openssl; }; then
     echo "Fail to move OpenSSL prebuilts into prebuilt/dcap/openssl"
     exit 1

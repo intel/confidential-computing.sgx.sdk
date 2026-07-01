@@ -1,6 +1,9 @@
 name: C/C++ CI
 
 on:
+  schedule:
+    # Off-peak, non-round slot to avoid the global midnight/top-of-hour resource crunch.
+    - cron: '37 4 * * 0'
   push:
     branches: [ "main*", "release*", "platform/*" ]
   pull_request:
@@ -19,16 +22,15 @@ on:
         description: "Parallel build with -j$(nproc) (uncheck to build serially, e.g. for readable error ordering when diagnosing a failure)"
         type: boolean
         default: true
+      build_sdk_rpm:
+        description: "Also build the SDK RPM package on the CentOS leg (off by default; the PSW deb/rpm packages are always built)"
+        type: boolean
+        default: false
 
-permissions:
-  actions: read
-  checks: read
-  contents: read
-  issues: write
-  pull-requests: write
+permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.workflow_ref }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -55,36 +57,67 @@ env:
 
 jobs:
   build:
-    name: "SGX SDK build"
+    name: "SGX SDK build (${{ matrix.os-name }})"
     runs-on: ${{ vars.RUNNER_CI_BUILD || 'ubuntu-latest' }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+
+    strategy:
+      fail-fast: false
+      # NOTE: CentOS currently builds ~2x slower than Ubuntu. If that gap persists, consider
+      # splitting it into a "matrix over reusable workflow" so the Ubuntu samples don't wait
+      # on the slower CentOS build.
+      matrix:
+        include:
+          # Ubuntu builds on the host runner (no container) so the ccache PATH masquerade in
+          # /usr/lib/ccache works unchanged; CentOS builds inside a stream10 container (ccache
+          # masquerade lives in /usr/lib64/ccache there). pkg-type/psw-pkg-target pick the deb vs
+          # rpm packaging flow.
+          - os-name: Ubuntu
+            container-image: ''
+            pkg-type: deb
+            psw-pkg-target: deb
+            build-deps: |
+              set -xeuo pipefail
+              sudo -E apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15
+              sudo -E apt-get install -y --no-install-recommends \
+                build-essential ocaml ocamlbuild automake autoconf libtool wget \
+                python-is-python3 libssl-dev cmake perl file ccache \
+                fakeroot debhelper dpkg-dev git ca-certificates unzip
+
+          - os-name: CentOS
+            # Stream 10 (gcc 14), digest-pinned for reproducibility. gcc 14 with Stream 10's
+            # default -O2 -D_FORTIFY_SOURCE=3 has a higher peak RSS per TU than gcc 11; under
+            # the ARC runner's small container memory cgroup (no swap) a naive -j$(nproc)
+            # overshoots the cap and wedges the build in reclaim. The memory-aware -j step
+            # below bounds parallelism to the cgroup budget to keep this leg green.
+            container-image: quay.io/centos/centos:stream10@sha256:ac9f9e2f8cdd9f6a1be56ac27fd6af0ba8546f066487c4b0c4bd75d224b61ec4
+            pkg-type: rpm
+            psw-pkg-target: rpm_psw_pkg
+            build-deps: |
+              set -xeuo pipefail
+              dnf install --setopt=install_weak_deps=False -y gcc gcc-c++ make automake autoconf libtool
+              dnf install --setopt=install_weak_deps=False -y redhat-rpm-config openssl-devel wget rpm-build git cmake perl python3 which python-unversioned-command file tar gzip
+              # OCaml + ocamlbuild and ccache are not in the default stream10 repos -> EPEL / CRB.
+              dnf install --setopt=install_weak_deps=False -y epel-release 'dnf-command(config-manager)'
+              dnf config-manager --set-enabled crb
+              dnf install --setopt=install_weak_deps=False -y ocaml ocaml-ocamlbuild ccache
+
+    # Empty container-image (Ubuntu) -> null -> runs directly on the host runner.
+    container: ${{ matrix.container-image || null }}
 
     steps:
+    # Prereqs first: on the CentOS container `git` must exist before checkout pulls submodules.
+    - name: Install build prerequisites
+      shell: bash
+      run: ${{ matrix.build-deps }}
+
     - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
       with:
         submodules: recursive
         token: ${{ secrets.ALL_REPO_CONTENTS_READ_PAT || github.token }}
-
-    - name: Install build prerequisites
-      shell: bash
-      run: |
-        set -xeuo pipefail
-
-        sudo -E apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15
-        
-        sudo -E apt-get install -y --no-install-recommends \
-          build-essential \
-          ocaml \
-          ocamlbuild \
-          automake \
-          autoconf \
-          libtool \
-          wget \
-          python-is-python3 \
-          libssl-dev \
-          cmake \
-          perl \
-          file \
-          ccache
 
     - name: Resolve ccache options
       shell: bash
@@ -104,7 +137,7 @@ jobs:
         # we suffix the run id so the post-purge save creates a fresh newest entry
         # (restore-keys prefer the most recent), instead of colliding with the stale
         # same-commit entry and no-op'ing.
-        save_key="ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}"
+        save_key="ccache-${{ matrix.os-name }}-${{ github.ref_name }}-${{ github.sha }}"
         [ "$purge" = "true" ] && save_key="${save_key}-purge-${{ github.run_id }}"
         echo "CCACHE_KEY=$save_key" >> "$GITHUB_ENV"
         echo "ccache: enabled=$enabled purge=$purge key=$save_key"
@@ -119,11 +152,11 @@ jobs:
       uses: actions/cache/restore@2c8a9bd7457de244a408f35966fab2fb45fda9c8  # v6.0.0
       with:
         path: ${{ env.CCACHE_DIR }}
-        key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+        key: ccache-${{ matrix.os-name }}-${{ github.ref_name }}-${{ github.sha }}
         restore-keys: |
-          ccache-${{ runner.os }}-${{ github.ref_name }}-
-          ccache-${{ runner.os }}-${{ github.base_ref }}-
-          ccache-${{ runner.os }}-
+          ccache-${{ matrix.os-name }}-${{ github.ref_name }}-
+          ccache-${{ matrix.os-name }}-${{ github.base_ref }}-
+          ccache-${{ matrix.os-name }}-
 
     - name: Enable ccache for the build
       if: env.CCACHE_ENABLED == 'true'
@@ -131,31 +164,65 @@ jobs:
       run: |
         set -euo pipefail
         ccache --version | head -n 1
-        # The Make-based parts of the SDK pick up ccache via the PATH masquerade
-        # (or CC/CXX wrappers as a fallback). Prefer the masquerade as it's transparent.
-        if [ -x /usr/lib/ccache/gcc ] && [ -x /usr/lib/ccache/g++ ]; then
-          echo "/usr/lib/ccache" >> "$GITHUB_PATH"
-          echo "ccache: using PATH masquerade (/usr/lib/ccache)"
+        # Curated PATH masquerade exposing ONLY gcc/g++ (the compiler names the
+        # Make-based SDK invokes), deliberately NOT cc/c++. Rationale: the CMake
+        # sub-builds (IPP crypto, protobuf, abseil, openmp) resolve cc/c++ and bake the
+        # resolved path in. If that path is itself a ccache masquerade symlink -- as in
+        # CentOS's system /usr/lib64/ccache, which ships cc AND c++ -- then
+        # CMAKE_*_COMPILER_LAUNCHER=ccache wraps ccache around a ccache symlink, i.e.
+        # ccache-in-ccache. ccache < 4.9 doesn't detect that loop and double-preprocesses
+        # every CMake TU on a miss, which made the cold CentOS leg ~1.8x slower than
+        # Ubuntu (whose /usr/lib/ccache ships no cc/c++, so CMake already fell through to
+        # the real /usr/bin/cc). Masquerading only gcc/g++ makes both legs identical: the
+        # Make-based compiles hit ccache via the masquerade, while CMake falls through to
+        # the real compiler and the launcher wraps it exactly once.
+        CCACHE_BIN=$(command -v ccache || true)
+        if [ -n "$CCACHE_BIN" ]; then
+          MASQ="$GITHUB_WORKSPACE/.ccache-masq"
+          mkdir -p "$MASQ"
+          ln -sf "$CCACHE_BIN" "$MASQ/gcc"
+          ln -sf "$CCACHE_BIN" "$MASQ/g++"
+          echo "$MASQ" >> "$GITHUB_PATH"
+          echo "ccache: curated masquerade (gcc,g++ only) at $MASQ -> $CCACHE_BIN"
+          # Cache the CMake sub-builds too: they bypass the PATH masquerade (they bake an
+          # absolute compiler path), so a launcher wraps ccache around the now-real
+          # compiler CMake resolved -- a single ccache layer.
+          echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
+          ccache -z   # zero stats so this run's hit/miss numbers are self-contained
         else
-          echo "CC=ccache gcc" >> "$GITHUB_ENV"
-          echo "CXX=ccache g++" >> "$GITHUB_ENV"
-          echo "ccache: masquerade dir absent; using CC/CXX wrappers"
+          echo "ccache: not found on PATH; building without a compiler cache"
         fi
-        # The CMake sub-builds (IPP crypto, protobuf, abseil, openmp) resolve the
-        # compiler to an absolute path (/usr/bin/cc) and bake it in, which bypasses
-        # the PATH masquerade. A compiler launcher wraps ccache around whatever
-        # compiler CMake resolved, so those (the bulk of the compiles) get cached too.
-        echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
-        echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
-        ccache -z   # zero stats so this run's hit/miss numbers are self-contained
+
+    - name: Compute make parallelism (memory-aware)
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Cap -j by available MEMORY, not just CPUs. At -j$(nproc), enough gcc compiles run at
+        # once to exceed a small container memory cgroup; with no swap the build then wedges in
+        # reclaim rather than OOM-killing (seen on the 4 GiB Stream 10 CentOS leg). Budget is
+        # the cgroup cap we run under, else physical RAM -- so a capped container throttles
+        # while the uncapped host keeps full -j$(nproc). ~576 MiB/job (measured C++ TU peak
+        # RSS: max ~730, p95 ~310) yields -j6 at 4 GiB; both knobs are env-overridable.
+        cpus=$(nproc)
+        budget_mb=$(( $(awk '/^MemTotal/{print $2}' /proc/meminfo) / 1024 ))
+        if [ -r /sys/fs/cgroup/memory.max ]; then          # cgroup v2 cap, if any
+          cap=$(cat /sys/fs/cgroup/memory.max)
+          [ "$cap" != max ] && budget_mb=$(( cap / 1024 / 1024 ))
+        fi
+        jobs=$(( (budget_mb - ${MAKE_MEM_RESERVE_MB:-512}) / ${MAKE_MEM_PER_JOB_MB:-576} ))
+        [ "$jobs" -lt 1 ] && jobs=1
+        [ "$jobs" -gt "$cpus" ] && jobs=$cpus
+        echo "cpus=$cpus mem-budget=${budget_mb}MiB -> make -j$jobs"
+        echo "MAKE_JOBS=$jobs" >> "$GITHUB_ENV"
 
     - name: Build SGX SDK (x64 install package = Linux)
       shell: bash
       run: |
         set -euo pipefail
-        # Parallel by default; only a manual workflow_dispatch can force a serial
-        # build (handy for readable error ordering when diagnosing a failure).
-        jobs="-j$(nproc)"
+        # Memory-aware parallelism from the step above; a manual workflow_dispatch can still
+        # force a serial build (readable error ordering when diagnosing a failure).
+        jobs="-j${MAKE_JOBS:-$(nproc)}"
         if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.parallel_build }}" != "true" ]; then
           jobs=""
         fi
@@ -163,6 +230,24 @@ jobs:
         # 'preparation' stays serial: it does git submodule / patch work.
         make preparation
         make $jobs sdk_install_pkg
+
+    - name: Build PSW packages (${{ matrix.pkg-type }})
+      shell: bash
+      run: |
+        set -euo pipefail
+        jobs="-j${MAKE_JOBS:-$(nproc)}"
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.parallel_build }}" != "true" ]; then
+          jobs=""
+        fi
+        # FLATTEN_PKG_OUT_DIR=1 drops packages straight into installer/<type>/ (no per-pkg subdirs)
+        # so the collect step can glob them flat. This builds only the PSW packages (enclave_common,
+        # urts, headers); the SDK package is NOT part of this set.
+        FLATTEN_PKG_OUT_DIR=1 make $jobs ${{ matrix.psw-pkg-target }}
+        # Optional, manual-only: also build the SDK RPM on the CentOS leg. Off by default.
+        if [ "${{ matrix.pkg-type }}" = "rpm" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.build_sdk_rpm }}" = "true" ]; then
+          echo "Building SDK RPM (build_sdk_rpm=true)"
+          FLATTEN_PKG_OUT_DIR=1 make $jobs rpm_sdk_pkg
+        fi
 
     - name: ccache statistics
       if: always() && env.CCACHE_ENABLED == 'true'
@@ -214,12 +299,57 @@ jobs:
 
         echo "⚠️ This CI workflow is only smoke testing the build pipeline; artifact outputs are not production-ready." >> "$GITHUB_STEP_SUMMARY"
 
+    - name: Collect PSW packages into a provenance tgz
+      shell: bash
+      run: |
+        set -euo pipefail
+        PKG='${{ matrix.pkg-type }}'
+        INST=build_infrastructure/linux/installer
+        mkdir -p outputs
+        stage=$(mktemp -d)
+        found=0
+        for f in "$INST/$PKG"/*."$PKG"; do
+          [ -e "$f" ] || continue
+          cp -v "$f" "$stage"/
+          found=1
+        done
+        [ "$found" = 1 ] || { echo "ERROR: no .$PKG packages found under $INST/$PKG" >&2; exit 1; }
+        # Carry the same CI provenance disclaimer inside the bundle.
+        cp "$INST/bin/DISCLAIMER.txt" "$stage"/
+        TGZ="outputs/sgx_${PKG}_packages_ci-build-${GITHUB_RUN_ID}_NON-PROD.tgz"
+        tar -czf "$TGZ" -C "$stage" .
+        rm -rf "$stage"
+        echo "Wrote $TGZ:"; tar -tzf "$TGZ"
+
     - name: Upload the output artifact (SDK installer)
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
       with:
-        name: sdk_installer-ci-preview
+        name: ${{ matrix.os-name }}-sdk-installer
         path: |
            build_infrastructure/linux/installer/bin/sgx_linux_x64_sdk_*.bin
            build_infrastructure/linux/installer/bin/DISCLAIMER.txt
         if-no-files-found: error
-        retention-days: 3
+        retention-days: 7
+
+    - name: Upload the output artifact (PSW packages tgz)
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+      with:
+        name: ${{ matrix.os-name }}-packages
+        path: outputs/sgx_${{ matrix.pkg-type }}_packages_*_NON-PROD.tgz
+        if-no-files-found: error
+        retention-days: 7
+
+  # Build + run every SIM-capable SampleCode sample via the download-based Docker images, but fed
+  # THIS run's freshly-built SDK installer + PSW deb packages (local-first; anything missing -- e.g.
+  # DCAP build deps -- still comes from 01.org). Ubuntu path only (no need to repeat on the rpm leg).
+  # Delegated to the docker-samples workflow so the per-sample build/run logic lives in one place.
+  samples-sim:
+    name: "Samples (SIM, docker)"
+    needs: build
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/docker-samples-prebuilt.yml
+    with:
+      sdk_installer_artifact: Ubuntu-sdk-installer
+      local_packages_artifact: Ubuntu-packages
