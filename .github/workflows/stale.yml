@@ -1,0 +1,109 @@
+name: Close stale issues and PRs
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # Daily at 3:00 AM UTC
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  stale:
+    runs-on: ubuntu-slim
+    if: ${{ github.repository == 'intel/confidential-computing.sgx.sdk' }}
+    timeout-minutes: 10
+    permissions:
+      actions: write  # For cache-based state persistence
+      issues: write
+      pull-requests: write
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      # ---------------------------------------------------------------------
+      # Step 1: General inactivity sweep.
+      #
+      # Marks PRs stale after 60 days of inactivity and issues after 90 days,
+      # then closes either 14 days later if still untouched. Exempts items
+      # that are pinned, security-related, milestoned, in active triage
+      # (help wanted, good first issue, awaiting-review, awaiting-approval,
+      # work-in-progress, blocked) or already routed to step 2 via the
+      # `needs-more-info` label. Only applies to items created on or after
+      # 2026-06-01 so historical backlog is left alone.
+      # ---------------------------------------------------------------------
+      - name: 'Inactivity sweep (stale -> close)'
+        uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
+        with:
+          operations-per-run: 100
+          days-before-pr-stale: 60
+          days-before-issue-stale: 90
+          days-before-close: 14
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
+          exempt-issue-labels: needs-more-info,pinned,security,blocked,help wanted,good first issue
+          exempt-pr-labels: needs-more-info,pinned,security,blocked,help wanted,awaiting-approval,work-in-progress,awaiting-review
+          start-date: '2026-06-01T00:00:00Z'
+          exempt-all-milestones: true
+          close-issue-reason: not_planned
+          close-issue-label: auto-closed
+          close-pr-label: auto-closed
+          stale-issue-message: >
+            This issue has had no activity for 90 days and has been automatically
+            marked as stale. If this is still reproducible / still relevant, please add a comment with any new information.
+            Otherwise it will be closed in 14 days. Closed issues can be reopened
+            at any time.
+          stale-pr-message: >
+            Thanks for the contribution. This pull request has had no activity for
+            60 days and has been automatically marked as stale. If you still want to pursue it,
+            a comment, rebase, or new commit will keep it open. Otherwise it will be closed in 14 days.
+            Closed pull requests can be reopened at any time.
+          close-issue-message: >
+            Closing this issue after 14 additional days of inactivity since it was
+            marked as stale. Thanks for raising it. If the problem still reproduces,
+            please reopen or comment with updated details.
+            For more details see our [contributing guide](https://github.com/intel/confidential-computing.sgx.sdk/blob/main/CONTRIBUTING.md).
+          close-pr-message: >
+            Closing this pull request after 14 additional days of inactivity since
+            it was marked as stale. Thanks for the contribution. Reopen it or
+            submit a follow-up PR when you are ready to continue.
+            For more details see our [contributing guide](https://github.com/intel/confidential-computing.sgx.sdk/blob/main/CONTRIBUTING.md).
+
+      # ---------------------------------------------------------------------
+      # Step 2: `needs-more-info` follow-up sweep.
+      #
+      # Targets items a maintainer has manually labeled `needs-more-info`.
+      # Never auto-applies the label (days-before-stale: -1). If the reporter
+      # responds, the action swaps `needs-more-info` for `info-updated`,
+      # giving maintainers a clear triage signal (`label:info-updated` view).
+      # If there is still no update 30 days after labeling, the item is
+      # auto-closed with a reopen-friendly message. Drafts and milestoned
+      # items are exempt; already-stale items from step 1 are skipped
+      # to avoid double-processing.
+      # ---------------------------------------------------------------------
+      - name: 'Needs-more-info follow-up sweep'
+        uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
+        with:
+          operations-per-run: 100
+          days-before-stale: -1
+          days-before-close: 30
+          only-labels: needs-more-info
+          stale-issue-label: needs-more-info
+          stale-pr-label: needs-more-info
+          labels-to-add-when-unstale: info-updated
+          exempt-issue-labels: stale,pinned,security
+          exempt-pr-labels: stale,pinned,security
+          start-date: '2026-06-01T00:00:00Z'
+          exempt-draft-pr: true
+          exempt-all-milestones: true
+          close-issue-label: auto-closed
+          close-pr-label: auto-closed
+          close-issue-message: >
+            This issue was labeled needs-more-info and has had no updates for
+            30 days. Closing for now. Thanks for the report. Reopen or comment
+            with the requested details and it will be picked up again.
+            For more details see our [contributing guide](https://github.com/intel/confidential-computing.sgx.sdk/blob/main/CONTRIBUTING.md).
+          close-pr-message: >
+            This pull request was labeled needs-more-info and has had no updates
+            for 30 days. Closing for now. Thanks for the contribution. Reopen
+            once the requested details are available.
+            For more details see our [contributing guide](https://github.com/intel/confidential-computing.sgx.sdk/blob/main/CONTRIBUTING.md).
