@@ -114,13 +114,13 @@ Supported Operating Systems
 ---------------------------
 The following Linux\* distributions are supported for both building and installing the Intel&reg; SGX SDK and enclave runtime:
 
-- Ubuntu\* 22.04, 24.04, and 26.04 LTS Server 64-bit
-- Red Hat Enterprise Linux Server 9.4 and 10.0 64-bit
-- CentOS Stream 9 and 10 64-bit
-- SUSE Linux Enterprise Server 15.6 64-bit
-- Anolis OS 8.10 64-bit
-- Azure Linux 3.0 64-bit
-- Debian 10 and 12 64-bit
+- Ubuntu\* Server (64-bit): 22.04, 24.04, 26.04 LTS
+- Red Hat Enterprise Linux\* Server (64-bit): 9.6, 9.8, 10.0, 10.2
+- CentOS\* Stream (64-bit): 9, 10
+- SUSE Linux Enterprise Server\* (64-bit): 15 SP7, 16
+- Anolis\* OS (64-bit): 8.10
+- Azure\* Linux (64-bit): 3.0
+- Debian\* (64-bit): 10, 12, 13
 
 
 Building
@@ -129,7 +129,7 @@ Building
 - Ensure that you have one of the [supported operating systems](#supported-operating-systems).
 
 - Use the following command(s) to install the required tools to build the Intel&reg; SGX SDK:
-  * On Debian 10 and Debian 12:
+  * On Debian 10, Debian 12, and Debian 13:
     ```bash
     sudo apt-get install build-essential ocaml ocamlbuild automake autoconf \
         libtool wget python3 libssl-dev git cmake perl
@@ -140,7 +140,7 @@ Building
     sudo apt-get install build-essential ocaml ocamlbuild automake autoconf \
         libtool wget python-is-python3 libssl-dev git cmake perl
     ```
-  * On Red Hat Enterprise Linux 9.4 and 10.0:
+  * On Red Hat Enterprise Linux 9 and 10:
     ```bash
     sudo yum groupinstall 'Development Tools'
     sudo yum install ocaml ocaml-ocamlbuild wget python3 openssl-devel git cmake perl
@@ -158,7 +158,7 @@ Building
         redhat-rpm-config openssl-devel wget rpm-build git cmake perl python3
     sudo alternatives --set python /usr/bin/python3
     ```
-  * On SUSE Linux Enterprise Server 15.6:
+  * On SUSE Linux Enterprise Server 15 SP7 and 16:
     ```bash
     sudo zypper install --type pattern devel_basis
     sudo zypper install ocaml ocaml-ocamlbuild automake autoconf libtool wget \
@@ -303,7 +303,7 @@ Before installing, ensure that:
 
 - Your system runs one of the [supported operating systems](#supported-operating-systems).
 - Install the runtime prerequisites for your distribution:
-  * On Debian 10 and Debian 12:
+  * On Debian 10, Debian 12, and Debian 13:
     ```bash
     sudo apt-get install build-essential python3
     sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1
@@ -312,7 +312,7 @@ Before installing, ensure that:
     ```bash
     sudo apt-get install build-essential python-is-python3
     ```
-  * On Red Hat Enterprise Linux 9.4 and 10.0:
+  * On Red Hat Enterprise Linux 9 and 10:
     ```bash
     sudo yum groupinstall 'Development Tools'
     sudo yum install python3
@@ -328,7 +328,7 @@ Before installing, ensure that:
     sudo dnf install python3
     sudo alternatives --set python /usr/bin/python3
     ```
-  * On SUSE Linux Enterprise Server 15.6:
+  * On SUSE Linux Enterprise Server 15 SP7 and 16:
     ```bash
     sudo zypper install --type pattern devel_basis
     sudo zypper install python3
