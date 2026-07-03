@@ -1,0 +1,90 @@
+name: 🐞 Runtime / API bug
+description: A crash or wrong behavior in the SDK libraries, the enclave runtime (uRTS / enclave_common), or a running enclave.
+title: "[bug] <short summary>"
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! Please fill in what you can and use `n/a` when not applicable. Not sure this is the right form?
+        - Build or install failure → **🔨 Build / install issue**.
+        - A `SampleCode/` sample → **🧩 Sample-code issue**.
+        - A "how do I…" question → the [community forum](https://community.intel.com/t5/Intel-Software-Guard-Extensions/bd-p/software-guard-extensions).
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - Trusted (in-enclave) library — tRTS / tlibc / tlibcxx / tcrypto / tseal / …
+        - Untrusted host library / enclave runtime
+        - Public header / API / EDL
+        - Tools — sgx_sign, sgx_edger8r, sgx-gdb, …
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Intel SGX SDK version / tag / commit
+      description: "If you use a [prebuilt Intel binary](https://download.01.org/intel-sgx/sgx-linux/), the version is enough. If you build from source, give the commit (`git describe --tags --always`) or tag."
+      placeholder: "sgx_2.27 (commit abc1234)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      description: Hardware and simulation mode often behave differently.
+      options:
+        - Hardware
+        - Simulation (SGX_MODE=SIM)
+        - Don't know
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS and kernel
+      placeholder: "Ubuntu 26.04.1, kernel 6.5.0-35-generic"
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal, deterministic steps plus the smallest code / EDL snippet that triggers it — nothing gets a bug fixed faster.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: Skip if it's obvious (e.g., "shouldn't crash").
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the SGX status code (`SGX_ERROR_*`); for a crash, a backtrace (`sgx-gdb`), or core dump. Paste text rather than screenshots so it stays searchable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Anything else? (logs, links, screenshots)
+      description: |
+        Drag logs, screenshots, or files straight in, and link related issues (`#123`). Redact secrets. A few things that often help:
+        - Memory / threading → `Enclave.config.xml` `HeapMaxSize` / `StackMaxSize` / `TCSNum`.
+        - Sealing broke after an upgrade → did the SDK version, CPU, or `MRSIGNER` change?
+        - Attestation → in-process quoting or out-of-process via the AESM?
+        - Legacy (non-FLC) launch control? Uncommon — mention it.

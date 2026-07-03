@@ -1,0 +1,34 @@
+name: 📚 Docs or something else
+description: A documentation problem, or anything that doesn't fit the templates above.
+title: "[misc] <short summary>"
+labels: ["needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for a documentation fix, or as a catch-all when nothing else fits (CI, repo hygiene, dependencies, release process, a scope question, ...).
+        Usage / how-to questions belong on the [community forum](https://community.intel.com/t5/Intel-Software-Guard-Extensions/bd-p/software-guard-extensions).
+        Maintainers may relabel to a more specific category during triage.
+
+  - type: input
+    id: location
+    attributes:
+      label: Docs location
+      description: For a documentation issue, provide permanent URL to file + line within this repo or provide file path + line. Otherwise, use `n/a`.
+      placeholder: "README.md L120, or Developer Reference PDF p.42"
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What's this about?
+      description: One or two sentences.
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What's wrong or missing and the outcome you'd like; for docs, a suggested wording helps. Drag screenshots or files straight in, and link related issues (e.g., `#123`).
+    validations:
+      required: true

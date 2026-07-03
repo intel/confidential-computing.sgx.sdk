@@ -1,0 +1,76 @@
+name: 🔨 Build / install issue
+description: Failure when building from source, installing the .deb/.rpm packages, or producing the SDK installer.
+title: "[build] <short summary>"
+labels: ["build", "needs-triage"]
+body:
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where it breaks
+      options:
+        - "`make preparation` / dependency fetch"
+        - SDK build
+        - Enclave runtime build
+        - "Installer (.bin) generation"
+        - "Package build (.deb / .rpm)"
+        - Install step of prebuilt packages errors out (apt / dnf / yum / dpkg / rpm / .bin)
+        - Cross-compile / container build
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Intel SGX SDK version / tag / commit
+      description: "If you use a [prebuilt Intel binary](https://download.01.org/intel-sgx/sgx-linux/), the version is enough. If you build from source, give the commit (`git describe --tags --always`) or tag."
+      placeholder: "sgx_2.27 (commit abc1234)"
+    validations:
+      required: true
+
+  - type: input
+    id: distro
+    attributes:
+      label: Build / install OS (distro + version)
+      placeholder: "Ubuntu 26.04 / CentOS Stream 9 / Anolis 8.10"
+    validations:
+      required: true
+
+  - type: input
+    id: toolchain
+    attributes:
+      label: Toolchain versions
+      description: Provide gcc/clang and **binutils** (`as` / `ld`) versions as they are the usual culprits for source-build breakage. Add make/cmake/openssl versions if relevant. `n/a` if you're just installing prebuilt packages.
+      placeholder: "gcc 11.4.0, binutils 2.38, make 4.3, openssl 3.0.13"
+
+  - type: input
+    id: flavor
+    attributes:
+      label: Build flavor
+      description: Any non-default build options, e.g., `USE_OPT_LIBS` (IPP vs SGXSSL), mitigation flavor, `DEBUG=1`, `SGX_MODE`. Use `n/a` for a plain `make sdk`.
+      placeholder: "USE_OPT_LIBS=0, DEBUG=1"
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command(s) executed
+      description: "The build command, or the install command (e.g., `dpkg -i` / `rpm -i` / `./sgx_linux_*.bin`). Note that `make preparation` must be run once before any source build."
+      placeholder: "make preparation && make sdk   /   sudo dpkg -i libsgx-*.deb"
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Error output
+      description: The failing lines + ~30 lines of context. Hard to place? Capture the whole run (`<command> 2>&1 | tee build.log`) and attach it under "Anything else" below. Trim unrelated noise.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Any other important information, e.g., logs, external links, GitHub links (e.g., PRs or issues) screenshots? Any unusual environment settings, e.g., proxy is used, air-gapped environment, used as a container?

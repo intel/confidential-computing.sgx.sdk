@@ -1,0 +1,73 @@
+name: 🧩 Sample-code issue
+description: A sample under SampleCode/ won't build, won't run, or behaves unexpectedly.
+title: "[sample] <short summary>"
+labels: ["sample", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The samples are many people's first touch of the SDK — thanks for helping keep them working. Fill in what you can; `n/a` is fine.
+
+  - type: input
+    id: sample
+    attributes:
+      label: Which sample
+      placeholder: "SampleEnclave / LocalAttestation / Switchless / SealUnseal / Cxx17SGXDemo / ..."
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Intel SGX SDK version / tag / commit
+      description: "If you use a [prebuilt Intel binary](https://download.01.org/intel-sgx/sgx-linux/), the version is enough. If you build from source, give the commit (`git describe --tags --always`) or tag."
+      placeholder: "sgx_2.27 (commit abc1234)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      description: Hardware and simulation mode often behave differently.
+      options:
+        - Hardware
+        - Simulation (SGX_MODE=SIM)
+        - Don't know
+    validations:
+      required: true
+
+  - type: dropdown
+    id: setup
+    attributes:
+      label: Did you source the SDK environment first?
+      description: Samples build against an installed SDK — `source <sdk-install>/environment` before `make`.
+      options:
+        - "Yes"
+        - "No"
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS and kernel
+      placeholder: "Ubuntu 26.04.1, kernel 6.5.0-35-generic"
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Exact commands and output
+      description: The `make` / `make run` you ran and its output. In hardware mode, note whether `aesmd` is running, which can be checked with `systemctl status aesmd`.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else? (logs, links, screenshots)
+      description: Local edits, non-standard install path, or legacy (non-FLC) launch control (uncommon). Drag logs or screenshots straight in, and link related issues (`#123`).

@@ -1,0 +1,31 @@
+name: ✨ Feature request
+description: Propose a new capability, API, sample, or workflow improvement.
+title: "[feat] <short summary>"
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What user-visible problem does this solve? Who is affected?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What alternatives did you consider and why do you consider the proposed alternative superior?
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope / impact
+      description: Which parts of this repo does the feature request touch (e.g., trusted/untrusted libraries, headers, tools, samples)? Is any ABI impacted? Does this break backward compatibility? Link related issues (e.g., `#123`) or prior discussions.
