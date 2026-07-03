@@ -1,10 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 🔒 Security vulnerability
-    url: https://www.intel.com/content/www/us/en/security-center/vulnerability-handling-guidelines.html
-    about: >
-      Don't open a public issue for a security bug.
-      Instead report it to Intel Security Center (see SECURITY.md) so it can be handled responsibly.
   - name: 💬 Usage question / how-to / design discussion
     url: https://community.intel.com/t5/Intel-Software-Guard-Extensions/bd-p/software-guard-extensions
     about: Not sure it's a bug? For "how do I…" and design questions, the community forum is the fastest way to get help.
