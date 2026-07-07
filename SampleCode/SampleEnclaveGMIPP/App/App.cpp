@@ -236,17 +236,27 @@ int ecall_sm4_ctr_functions()
 }
 
 /* Application entry */
+/* Exit codes:
+ *   0  - all tests passed
+ *   1  - enclave initialized, but one or more tests FAILed
+ *   -1 - infrastructure failure (enclave could not be initialized)
+ */
+#define APP_EXIT_SUCCESS      0
+#define APP_EXIT_TEST_FAILURE 1
+#define APP_EXIT_INFRA_FAILURE (-1)
+
 int SGX_CDECL main(int argc, char *argv[])
 {
 	(void)(argc);
 	(void)(argv);
+	int failed_tests = 0;
 
 	/* Initialize the enclave */
 	if (initialize_enclave() < 0)
 	{
 		printf("Enter a character before exit ...\n");
 		getchar();
-		return -1;
+		return APP_EXIT_INFRA_FAILURE;
 	}
 
 	/* GM SMx functions test */
@@ -254,41 +264,62 @@ int SGX_CDECL main(int argc, char *argv[])
 	if (ecall_sm2_sign_verify_functions() == 0)
 		printf("GM SM2 - sign and verify: PASS\n");
 	else
+	{
 		printf("GM SM2 - sign and verify: FAIL\n");
+		failed_tests++;
+	}
 
 	if (ecall_sm2_key_exchange_functions() == 0)
 		printf("GM SM2 - key exchange: PASS\n");
 	else
+	{
 		printf("GM SM2 - key exchange: FAIL\n");
+		failed_tests++;
+	}
 
 	if (ecall_sm2_encrypt_decrypt_gm_functions() == 0)
 		printf("GM SM2 - encrypt and decrypt(GM version): PASS\n");
 	else
+	{
 		printf("GM SM2 - encrypt and decrypt(GM version): FAIL\n");
+		failed_tests++;
+	}
 
 	/* SM3 */
 	if (ecall_sm3_functions() == 0)
 		printf("GM SM3 - compute digest of message: PASS\n");
 	else
+	{
 		printf("GM SM3 - compute digest of message: FAIL\n");
+		failed_tests++;
+	}
 
 	/* SM4 */
 	if (ecall_sm4_cbc_functions() == 0)
 		printf("GM SM4 - cbc encrypt and decrypt: PASS\n");
 	else
+	{
 		printf("GM SM4 - cbc encrypt and decrypt: FAIL\n");
+		failed_tests++;
+	}
 
 	if (ecall_sm4_ctr_functions () == 0)
 		printf("GM SM4 - ctr encrypt and decrypt: PASS\n");
 	else
+	{
 		printf("GM SM4 - ctr encrypt and decrypt: FAIL\n");
+		failed_tests++;
+	}
 
 	/* Destroy the enclave */
 	sgx_destroy_enclave(global_eid);
 
-	printf("Info: SampleEnclaveGMIPP successfully returned.\n");
+	if (failed_tests > 0)
+		printf("Info: SampleEnclaveGMIPP returned with %d failed test(s).\n", failed_tests);
+	else
+		printf("Info: SampleEnclaveGMIPP successfully returned.\n");
 
 	printf("Enter a character before exit ...\n");
 	getchar();
-	return 0;
+	return (failed_tests > 0) ? APP_EXIT_TEST_FAILURE : APP_EXIT_SUCCESS;
 }

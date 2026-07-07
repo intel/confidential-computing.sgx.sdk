@@ -42,6 +42,11 @@
 const unsigned int order[] = {0x39D54123, 0x53BBF409, 0x21C6052B, 0x7203DF6B, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFE};
 const int ordSize = sizeof(order) / sizeof(unsigned int);
 
+/* Bit length of the SM2 prime finite field GF(p). The SM2 curve (GB/T 32918)
+ * is defined over a 256-bit prime, so this is the field-element / prime bit
+ * size passed to ippsGFpGetSize (feBitSize) and ippsGFpInitFixed (primeBitSize). */
+const int SM2_PRIME_BIT_SIZE = 256;
+
 //replace free()
 #ifndef SAFE_FREE
 #define SAFE_FREE(ptr) do {if (NULL != (ptr)) {free(ptr); (ptr) = NULL;}} while(0);
@@ -75,68 +80,128 @@ int printf(const char* fmt, ...)
 	return (int)strnlen(buf, BUFSIZ - 1) + 1;
 }
 
+/* SM2 EC handle encapsulating both GFp and GFpEC contexts */
+typedef struct {
+	IppsGFpState* pGFp;
+	IppsGFpECState* pEC;
+	int gfpSize;
+	int ecSize;
+} Sm2EcHandle;
+
 /* Define EC over GF(p) context for SM2 */
-static IppsECCPState* new_ECC_sm2(void)
+static Sm2EcHandle* new_ECC_sm2(void)
 {
-	int ctxSize = 0;
-	IppsECCPState* pSM2 = NULL;
+	int gfpSize = 0;
+	int ecSize = 0;
+	IppsGFpState* pGFp = NULL;
+	IppsGFpECState* pEC = NULL;
+	Sm2EcHandle* handle = NULL;
 	IppStatus status = ippStsNoErr;
 
-	// Get the size of ECC context for SM2
-	status = ippsECCPGetSizeStdSM2(&ctxSize);
+	// Allocate the handle
+	handle = (Sm2EcHandle*)malloc(sizeof(Sm2EcHandle));
+	if (handle == NULL) {
+		printf("Error: fail to allocate memory for Sm2EcHandle\n");
+		return NULL;
+	}
+
+	// Get the size of GFp context for SM2 (256-bit prime field)
+	status = ippsGFpGetSize(SM2_PRIME_BIT_SIZE, &gfpSize);
 	if (status != ippStsNoErr) {
-		printf("Error: fail to get size of ECCP\n");
+		printf("Error: fail to get size of GFp\n");
+		free(handle);
 		return NULL;
 	}
 
-	// Allocate the ECC context for SM2
-	pSM2 = (IppsECCPState*)(malloc(ctxSize));
-	if (pSM2 == NULL) {
-		printf("Error: fail to allocate memory for ECCP\n");
+	// Allocate the GFp context
+	pGFp = (IppsGFpState*)(malloc(gfpSize));
+	if (pGFp == NULL) {
+		printf("Error: fail to allocate memory for GFp\n");
+		free(handle);
 		return NULL;
 	}
 
-	// Initialize the ECC context for SM2
-	status = ippsECCPInitStdSM2(pSM2);
+	// Initialize the GFp context for SM2
+	status = ippsGFpInitFixed(SM2_PRIME_BIT_SIZE, ippsGFpMethod_p256sm2(), pGFp);
 	if (status != ippStsNoErr) {
-		printf("Error: fail to initialize ECCP\n");
-		SAFE_FREE_HEAP(pSM2, ctxSize);
+		printf("Error: fail to initialize GFp\n");
+		SAFE_FREE_HEAP(pGFp, gfpSize);
+		free(handle);
 		return NULL;
 	}
 
-	// Set up a recommended set of domain parameters for ECC context for SM2
-	status = ippsECCPSetStdSM2(pSM2);
+	// Get the size of GFpEC context for SM2
+	status = ippsGFpECGetSize(pGFp, &ecSize);
 	if (status != ippStsNoErr) {
-		printf("Error: fail to set up recommended set of domain parameters for ECCP\n");
-		SAFE_FREE_HEAP(pSM2, ctxSize);
+		printf("Error: fail to get size of GFpEC\n");
+		SAFE_FREE_HEAP(pGFp, gfpSize);
+		free(handle);
 		return NULL;
 	}
 
-	return pSM2;
+	// Allocate the GFpEC context for SM2
+	pEC = (IppsGFpECState*)(malloc(ecSize));
+	if (pEC == NULL) {
+		printf("Error: fail to allocate memory for GFpEC\n");
+		SAFE_FREE_HEAP(pGFp, gfpSize);
+		free(handle);
+		return NULL;
+	}
+
+	// Initialize the GFpEC context for SM2
+	status = ippsGFpECInitStdSM2(pGFp, pEC);
+	if (status != ippStsNoErr) {
+		printf("Error: fail to initialize GFpEC\n");
+		SAFE_FREE_HEAP(pEC, ecSize);
+		SAFE_FREE_HEAP(pGFp, gfpSize);
+		free(handle);
+		return NULL;
+	}
+
+	// Store the contexts and sizes in the handle
+	handle->pGFp = pGFp;
+	handle->pEC = pEC;
+	handle->gfpSize = gfpSize;
+	handle->ecSize = ecSize;
+
+	// Note: pGFp is stored as a pointer reference inside pEC (see ECP_GFP macro).
+	// Both pEC and pGFp must be freed when done.
+
+	return handle;
+}
+
+/* Free EC over GF(p) context for SM2 */
+static void free_ECC_sm2(Sm2EcHandle* handle)
+{
+	if (handle != NULL) {
+		SAFE_FREE_HEAP(handle->pEC, handle->ecSize);
+		SAFE_FREE_HEAP(handle->pGFp, handle->gfpSize);
+		free(handle);
+	}
 }
 
 /* Define EC over GF(p) Point context */
-static IppsECCPPointState* new_ECC_Point(void)
+static IppsGFpECPoint* new_ECC_Point(IppsGFpECState* pEC)
 {
 	int ctxSize = 0;
-	IppsECCPPointState* pPoint = NULL;
+	IppsGFpECPoint* pPoint = NULL;
 	IppStatus status = ippStsNoErr;
 
-	status = ippsECCPPointGetSize(256, &ctxSize);
+	status = ippsGFpECPointGetSize(pEC, &ctxSize);
 	if (status != ippStsNoErr) {
-		printf("Error: fail to get size of ECCPPoint\n");
+		printf("Error: fail to get size of GFpECPoint\n");
 		return NULL;
 	}
 
-	pPoint = (IppsECCPPointState*)(malloc(ctxSize));
+	pPoint = (IppsGFpECPoint*)(malloc(ctxSize));
 	if (pPoint == NULL) {
-		printf("Error: fail to allocate memory for ECCPPoint\n");
+		printf("Error: fail to allocate memory for GFpECPoint\n");
 		return NULL;
 	}
 
-	status = ippsECCPPointInit(256, pPoint);
+	status = ippsGFpECPointInit(NULL, NULL, pPoint, pEC);
 	if (status != ippStsNoErr) {
-		printf("Error: fail to initialize ECCPPoint\n");
+		printf("Error: fail to initialize GFpECPoint\n");
 		SAFE_FREE_HEAP(pPoint, ctxSize);
 		return NULL;
 	}
@@ -176,12 +241,6 @@ static IppsBigNumState* new_BN(int len, const unsigned int* pData)
 	return pBN;
 }
 
-/* Convert bit size into 32-bit word size */
-static int Bitsize2Wordsize(int nBits)
-{
-	return (nBits+31)>>5;
-}
-
 /* Generate a secure random number */
 static int secure_rand(unsigned int* pX, int size)
 {
@@ -196,6 +255,8 @@ static int secure_rand(unsigned int* pX, int size)
 /* Define a new random BN generator instead of IPP Crypto - ippsPRNGen */
 static IppStatus gen_random_BN(Ipp32u* pRand, int nBits, void* pCtx)
 {
+	(void)pCtx; // unused: required by the IppBitSupplier callback signature
+
 	if (!pRand) {
 		printf("Error: pRand is NULL\n");
 		return ippStsNullPtrErr;
@@ -206,7 +267,8 @@ static IppStatus gen_random_BN(Ipp32u* pRand, int nBits, void* pCtx)
 		return ippStsSizeErr;
 	}
 
-    if (SGX_SUCCESS != sgx_read_rand((uint8_t*)pRand, (uint32_t)nBits / 8)) {
+    sgx_status_t sgx_ret = sgx_read_rand((uint8_t*)pRand, (uint32_t)nBits / 8);
+	if (SGX_SUCCESS != sgx_ret) {
 		printf("Error: fail to generate a pseudorandom unsigned big number of the specified bit length\n");
 		return ippStsErr;
 	}
@@ -215,20 +277,25 @@ static IppStatus gen_random_BN(Ipp32u* pRand, int nBits, void* pCtx)
 }
 
 /* SM2 generate private key and public key */
-static int sm2_key_generation(IppsBigNumState** privateKey, IppsECCPPointState** publicKey)
+static int sm2_key_generation(IppsBigNumState** privateKey, IppsGFpECPoint** publicKey)
 {
+	Sm2EcHandle *ecHandle = NULL;
 	IppsGFpECState *pEC = NULL;
+	int nScalars = 1;
+	int pBufferSize = 0;
+	Ipp8u *pScratchBuffer = NULL;
 	IppStatus ipp_ret = ippStsNoErr;
 	int ret = 0;
 
 	do {
 		// 1. Create ECC context for SM2
-		pEC = (IppsGFpECState*)new_ECC_sm2();
-		if (pEC == NULL) {
+		ecHandle = new_ECC_sm2();
+		if (ecHandle == NULL) {
 			printf("Error: fail to create ecc context for sm2\n");
 			ret = -1;
 			break;
 		}
+		pEC = ecHandle->pEC;
 
 		// 2. Generate private key and public key
 		*privateKey = new_BN(ordSize, 0);
@@ -237,22 +304,47 @@ static int sm2_key_generation(IppsBigNumState** privateKey, IppsECCPPointState**
 			ret = -2;
 			break;
 		}
-		*publicKey = new_ECC_Point();
+		*publicKey = new_ECC_Point(pEC);
 		if (*publicKey == NULL) {
 			printf("Error: fail to declare public key\n");
 			ret = -3;
 			break;
 		}
-		ipp_ret = ippsECCPGenKeyPair(*privateKey, *publicKey, pEC, gen_random_BN, NULL);
+
+		// Generate private key
+		ipp_ret = ippsGFpECPrivateKey(*privateKey, pEC, gen_random_BN, NULL);
 		if (ipp_ret != ippStsNoErr) {
-			printf("Error: fail to generate private and public key pairs\n");
+			printf("Error: fail to generate private key\n");
 			ret = -4;
+			break;
+		}
+
+		// Get scratch buffer size
+		ipp_ret = ippsGFpECScratchBufferSize(nScalars, pEC, &pBufferSize);
+		if (ipp_ret != ippStsNoErr) {
+			printf("Error: fail to get the size of the scratch buffer\n");
+			ret = -5;
+			break;
+		}
+		pScratchBuffer = (Ipp8u*)malloc(pBufferSize);
+		if (pScratchBuffer == NULL) {
+			printf("Error: fail to allocate memory for scratch buffer\n");
+			ret = -6;
+			break;
+		}
+
+		// Generate public key from private key
+		ipp_ret = ippsGFpECPublicKey(*privateKey, *publicKey, pEC, pScratchBuffer);
+		if (ipp_ret != ippStsNoErr) {
+			printf("Error: fail to generate public key\n");
+			ret = -7;
 			break;
 		}
 	} while(0);
 
 	// 3. Final, release resource
-	SAFE_FREE(pEC);
+	SAFE_FREE_HEAP(pScratchBuffer, pBufferSize);
+	free_ECC_sm2(ecHandle);
 
 	return ret;
 }
@@ -260,20 +352,25 @@ static int sm2_key_generation(IppsBigNumState** privateKey, IppsECCPPointState**
 /* SM2 sign */
 static int sm2_sign(const IppsBigNumState* pMsgDigest, const IppsBigNumState* regPrivateKey, IppsBigNumState* signX, IppsBigNumState* signY)
 {
+	Sm2EcHandle *ecHandle = NULL;
 	IppsGFpECState *pEC = NULL;
 	IppsBigNumState *ephPrivateKey = NULL;
-	IppsECCPPointState *ephPublicKey = NULL;
+	IppsGFpECPoint *ephPublicKey = NULL;
+	int nScalars = 1;
+	int pBufferSize = 0;
+	Ipp8u *pScratchBuffer = NULL;
 	IppStatus ipp_ret = ippStsNoErr;
 	int ret = 0;
 
 	do {
 		// 1. Create ECC context for SM2
-		pEC = (IppsGFpECState*)new_ECC_sm2();
-		if (pEC == NULL) {
+		ecHandle = new_ECC_sm2();
+		if (ecHandle == NULL) {
 			printf("Error: fail to create ecc context for sm2\n");
 			ret = -1;
 			break;
 		}
+		pEC = ecHandle->pEC;
 
 		// 2. Generate ephemeral private key and public key
 		ret = sm2_key_generation(&ephPrivateKey, &ephPublicKey);
@@ -283,52 +380,87 @@ static int sm2_sign(const IppsBigNumState* pMsgDigest, const IppsBigNumState* re
 			break;
 		}
 
-		// 3. Sign using ECC context for SM2
-		ipp_ret = ippsECCPSignSM2(pMsgDigest, regPrivateKey, ephPrivateKey, signX, signY, pEC);
+		// 3. Get scratch buffer size
+		ipp_ret = ippsGFpECScratchBufferSize(nScalars, pEC, &pBufferSize);
+		if (ipp_ret != ippStsNoErr) {
+			printf("Error: fail to get the size of the scratch buffer\n");
+			ret = -3;
+			break;
+		}
+		pScratchBuffer = (Ipp8u*)malloc(pBufferSize);
+		if (pScratchBuffer == NULL) {
+			printf("Error: fail to allocate memory for scratch buffer\n");
+			ret = -4;
+			break;
+		}
+
+		// 4. Sign using ECC context for SM2
+		ipp_ret = ippsGFpECSignSM2(pMsgDigest, regPrivateKey, ephPrivateKey, signX, signY, pEC, pScratchBuffer);
 		if (ipp_ret != ippStsNoErr) {
 			printf("Error: fail to sign the message\n");
-			ret = -3;
+			ret = -5;
 			break;
 		}
 	} while(0);
 
-	// 4. Final, remove secret and release resource
+	// 5. Final, remove secret and release resource
 	// !!!Please clear secret including key/context related buffer/big number here!!!
+	SAFE_FREE_HEAP(pScratchBuffer, pBufferSize);
 	SAFE_FREE(ephPublicKey);
 	SAEF_FREE_ECC_PRI_KEY(ephPrivateKey);
-	SAFE_FREE(pEC);
+	free_ECC_sm2(ecHandle);
 
 	return ret;
 }
 
 /* SM2 verify */
-static int sm2_verify(const IppsBigNumState* pMsgDigest, const IppsECCPPointState* regPublicKey, const IppsBigNumState* signX, const IppsBigNumState* signY)
+static int sm2_verify(const IppsBigNumState* pMsgDigest, const IppsGFpECPoint* regPublicKey, const IppsBigNumState* signX, const IppsBigNumState* signY)
 {
+	Sm2EcHandle *ecHandle = NULL;
 	IppsGFpECState *pEC = NULL;
+	int nScalars = 2; // ippsGFpECVerifySM2 computes [s]G + [t]regPublic (2 mul_point operations)
+	int pBufferSize = 0;
+	Ipp8u *pScratchBuffer = NULL;
 	IppStatus ipp_ret = ippStsNoErr;
 	IppECResult eccResult = ippECValid;
 	int ret = 0;
 
 	do {
 		// 1. Create ECC context for SM2
-		pEC = (IppsGFpECState*)new_ECC_sm2();
-		if (pEC == NULL) {
+		ecHandle = new_ECC_sm2();
+		if (ecHandle == NULL) {
 			printf("Error: fail to create ecc context for sm2\n");
 			ret = -1;
 			break;
 		}
+		pEC = ecHandle->pEC;
 
-		// 2. Verify using ECC context for SM2
-		ipp_ret = ippsECCPVerifySM2(pMsgDigest, regPublicKey, signX, signY, &eccResult, pEC);
+		// 2. Get scratch buffer size
+		ipp_ret = ippsGFpECScratchBufferSize(nScalars, pEC, &pBufferSize);
+		if (ipp_ret != ippStsNoErr) {
+			printf("Error: fail to get the size of the scratch buffer\n");
+			ret = -2;
+			break;
+		}
+		pScratchBuffer = (Ipp8u*)malloc(pBufferSize);
+		if (pScratchBuffer == NULL) {
+			printf("Error: fail to allocate memory for scratch buffer\n");
+			ret = -3;
+			break;
+		}
+
+		// 3. Verify using ECC context for SM2
+		ipp_ret = ippsGFpECVerifySM2(pMsgDigest, regPublicKey, signX, signY, &eccResult, pEC, pScratchBuffer);
 		if ((ipp_ret != ippStsNoErr) || (eccResult != ippECValid)) {
 			printf("Error: fail to verify the signature\n");
-			ret = -2;
+			ret = -4;
 			break;
 		}
 	} while(0);
 
-	// 3. Final, release resource
-	SAFE_FREE(pEC);
+	// 4. Final, release resource
+	SAFE_FREE_HEAP(pScratchBuffer, pBufferSize);
+	free_ECC_sm2(ecHandle);
 
 	return ret;
 }
@@ -336,9 +468,8 @@ static int sm2_verify(const IppsBigNumState* pMsgDigest, const IppsECCPPointStat
 /* SM2 sign and verify */
 int ecall_sm2_sign_verify(void)
 {
-	IppsECCPState *pECCPS = NULL;
 	IppsBigNumState *regPrivateKey = NULL;
-	IppsECCPPointState *regPublicKey = NULL;
+	IppsGFpECPoint *regPublicKey = NULL;
 	int nScalars = 1;
 	int pBufferSize = 0;
 	Ipp8u *pScratchBuffer = NULL;
@@ -351,15 +482,7 @@ int ecall_sm2_sign_verify(void)
 	const char *user_id = "1234567812345678";
 
 	do {
-		// 1. Create ECC context for SM2
-		pECCPS = new_ECC_sm2();
-		if (pECCPS == NULL) {
-			printf("Error: fail to create ecc context for sm2\n");
-			ret = -1;
-			break;
-		}
-
-		// 2. Generate regular private key and public key
+		// 1. Generate regular private key and public key
 		ret = sm2_key_generation(&regPrivateKey, &regPublicKey);
 		if (ret != 0) {
 			printf("Error: fail to generate regular private key and public key\n");
@@ -367,7 +490,7 @@ int ecall_sm2_sign_verify(void)
 			break;
 		}
 
-		// 3. Create signX and signY
+		// 2. Create signX and signY
 		signX = new_BN(ordSize, 0);
 		if (signX == NULL) {
 			printf("Error: fail to create signX\n");
@@ -381,31 +504,43 @@ int ecall_sm2_sign_verify(void)
 			break;
 		}
 
+		// 3. Create temporary EC context for message digest calculation
+		Sm2EcHandle *digestHandle = new_ECC_sm2();
+		if (digestHandle == NULL) {
+			printf("Error: fail to create ecc context for digest\n");
+			ret = -5;
+			break;
+		}
+
 		// 4. Digest message
 		// Calculate Z = H256(ENTLA || IDA || a || b || xG || yG || xA || yA)
 		// Calculate ZA = H256(Z||M)
-		ipp_ret = ippsGFpECScratchBufferSize(nScalars, (IppsGFpECState*)pECCPS, &pBufferSize);
+		ipp_ret = ippsGFpECScratchBufferSize(nScalars, digestHandle->pEC, &pBufferSize);
 		if (ipp_ret != ippStsNoErr) {
 			printf("Error: fail to get the size of the scratch buffer\n");
-			ret = -5;
+			free_ECC_sm2(digestHandle);
+			ret = -6;
 			break;
 		}
 		pScratchBuffer = (Ipp8u*)malloc(pBufferSize);
 		if (pScratchBuffer == NULL) {
 			printf("Error: fail to allocate memory for pScratchBuffer\n");
-			ret = -6;
+			free_ECC_sm2(digestHandle);
+			ret = -7;
 			break;			
 		}
 		pMsgDigest = new_BN(ordSize, 0);
 		if (pMsgDigest == NULL) {
 			printf("Error: fail to create pointer to the resulting message digest\n");
-			ret = -7;
+			free_ECC_sm2(digestHandle);
+			ret = -8;
 			break;
 		}
-		ipp_ret = ippsGFpECMessageRepresentationSM2(pMsgDigest, (const Ipp8u*)message, strlen(message), (const Ipp8u*)user_id, strlen(user_id), regPublicKey, pECCPS, pScratchBuffer);
+		ipp_ret = ippsGFpECMessageRepresentationSM2(pMsgDigest, (const Ipp8u*)message, (int)strlen(message), (const Ipp8u*)user_id, (int)strlen(user_id), regPublicKey, digestHandle->pEC, pScratchBuffer);
+		free_ECC_sm2(digestHandle);
 		if (ipp_ret != ippStsNoErr) {
 			printf("Error: fail to digest message\n");
-			ret = -8;
+			ret = -9;
 			break;
 		}
 
@@ -413,7 +548,7 @@ int ecall_sm2_sign_verify(void)
 		ret = sm2_sign(pMsgDigest, regPrivateKey, signX, signY);
 		if (ret != 0) {
 			printf("Error: fail to sign\n");
-			ret = -9;
+			ret = -10;
 			break;
 		}
 
@@ -421,7 +556,7 @@ int ecall_sm2_sign_verify(void)
 		ret = sm2_verify(pMsgDigest, regPublicKey, signX, signY);
 		if (ret != 0) {
 			printf("Error: fail to verify\n");
-			ret = -10;
+			ret = -11;
 			break;
 		}
 	} while(0);
@@ -434,7 +569,6 @@ int ecall_sm2_sign_verify(void)
 	SAFE_FREE_HEAP(pScratchBuffer, pBufferSize);
 	SAFE_FREE(regPublicKey);
 	SAEF_FREE_ECC_PRI_KEY(regPrivateKey);
-	SAFE_FREE(pECCPS);
 
 	return ret;
 }
@@ -469,7 +603,7 @@ static int sm2_compute_hash(Ipp8u* hash_data, const char* message)
 		}
 
 		// 2. Compute
-		status = ippsHashUpdate_rmf((const Ipp8u *)message, strlen((char *)message), pSM3);
+		status = ippsHashUpdate_rmf((const Ipp8u *)message, (int)strlen(message), pSM3);
 		if (status != ippStsNoErr) {
 			printf("Error: fail to digest the message of specified length\n");
 			ret = -4;
@@ -492,22 +626,22 @@ static int sm2_compute_hash(Ipp8u* hash_data, const char* message)
 /* SM2 Key Exchange */
 int ecall_sm2_key_exchange(void)
 {
-	IppsGFpECState *pEC = NULL;
 	IppsBigNumState *requesterRegPrivateKey = NULL, *responderRegPrivateKey = NULL, *requesterEphPrivateKey = NULL, *responderEphPrivateKey = NULL;
-	IppsECCPPointState *requesterRegPublicKey = NULL, *responderRegPublicKey = NULL, *requesterEphPublicKey = NULL, *responderEphPublicKey = NULL;
+	IppsGFpECPoint *requesterRegPublicKey = NULL, *responderRegPublicKey = NULL, *requesterEphPublicKey = NULL, *responderEphPublicKey = NULL;
 	int pSize = 0;
 	IppsGFpECKeyExchangeSM2State *pKERequester = NULL, *pKEResponder = NULL;
-	int nScalars = 1;
+	Sm2EcHandle *hashHandle = NULL;
+	int nScalars = 2; // ippsGFpECUserIDHashSM2 / ippsGFpECKeyExchangeSM2_SharedKey require nScalars >= 2
 	int pBufferSize = 0;
 	Ipp8u *pScratchBuffer = NULL;
 	Ipp8u sharedKeyRequester[32] = {0};
 	Ipp8u sharedKeyResponder[32] = {0};
 	int sharedKeyRequesterSize = 32;
 	int sharedKeyResponderSize = 32;
-	char *user_id_requester = "1234567812345678";
-	char *user_id_responder = "AABBCCDDEEFFGGHH";
-	int user_id_len_requester = strlen(user_id_requester);
-	int user_id_len_responder = strlen(user_id_responder);
+	const char *user_id_requester = "1234567812345678";
+	const char *user_id_responder = "AABBCCDDEEFFGGHH";
+	int user_id_len_requester = (int)strlen(user_id_requester);
+	int user_id_len_responder = (int)strlen(user_id_responder);
 	Ipp8u user_id_hash_requester[32] = {0};
 	Ipp8u user_id_hash_responder[32] = {0};
 	Ipp8u pSSelfRequester[32] = {0};
@@ -519,14 +653,6 @@ int ecall_sm2_key_exchange(void)
 	int ret = 0;
 
 	do {
-		// 1. Create ECC context for SM2
-		pEC = (IppsGFpECState*)new_ECC_sm2();
-		if (pEC == NULL) {
-			printf("Error: fail to create ecc context for sm2\n");
-			ret = -1;
-			break;
-		}
-
 		// Requester:
 		// 2. Generate requester's regular private and public key
 		ret = sm2_key_generation(&requesterRegPrivateKey, &requesterRegPublicKey);
@@ -561,68 +687,76 @@ int ecall_sm2_key_exchange(void)
 			break;
 		}
 
-		// 6. Get the size of the SM2 Key Exchange ECC context
-		ipp_ret = ippsGFpECKeyExchangeSM2_GetSize(pEC, &pSize);
-		if (ipp_ret != ippStsNoErr) {
-			printf("Error: fail to get the size of the SM2 Key Exchange ECC context\n");
+		// 6. Create temporary EC context for user ID hash computation
+		hashHandle = new_ECC_sm2();
+		if (hashHandle == NULL) {
+			printf("Error: fail to create ecc context for hash\n");
 			ret = -6;
 			break;
 		}
 
-		// 7. Initialize the SM2 Key Exchange ECC context
-		pKERequester = (IppsGFpECKeyExchangeSM2State*)malloc(pSize);
-		if (pKERequester == NULL) {
-			printf("Error: fail to allocate memory for pKERequester\n");
+		// 7. Get the size of the SM2 Key Exchange ECC context
+		ipp_ret = ippsGFpECKeyExchangeSM2_GetSize(hashHandle->pEC, &pSize);
+		if (ipp_ret != ippStsNoErr) {
+			printf("Error: fail to get the size of the SM2 Key Exchange ECC context\n");
 			ret = -7;
 			break;
 		}
-		ipp_ret = ippsGFpECKeyExchangeSM2_Init(pKERequester, ippKESM2Requester, pEC);
+
+		// 8. Initialize the SM2 Key Exchange ECC context
+		pKERequester = (IppsGFpECKeyExchangeSM2State*)malloc(pSize);
+		if (pKERequester == NULL) {
+			printf("Error: fail to allocate memory for pKERequester\n");
+			ret = -8;
+			break;
+		}
+		ipp_ret = ippsGFpECKeyExchangeSM2_Init(pKERequester, ippKESM2Requester, hashHandle->pEC);
 		if (ipp_ret != ippStsNoErr) {
 			printf("Error: fail to initialize requester SM2 Key Exchange ECC context\n");
-			ret = -8;
+			ret = -9;
 			break;
 		}
 		pKEResponder = (IppsGFpECKeyExchangeSM2State*)malloc(pSize);
 		if (pKEResponder == NULL) {
 			printf("Error: fail to allocate memory for pKEResponder\n");
-			ret = -9;
-			break;
-		}
-		ipp_ret = ippsGFpECKeyExchangeSM2_Init(pKEResponder, ippKESM2Responder, pEC);
-		if (ipp_ret != ippStsNoErr) {
-			printf("Error: fail to initialize responder SM2 Key Exchange ECC context\n");
 			ret = -10;
 			break;
 		}
+		ipp_ret = ippsGFpECKeyExchangeSM2_Init(pKEResponder, ippKESM2Responder, hashHandle->pEC);
+		if (ipp_ret != ippStsNoErr) {
+			printf("Error: fail to initialize responder SM2 Key Exchange ECC context\n");
+			ret = -11;
+			break;
+		}
 
-		// 8. Compute user_id_hash_requester and user_id_hash_responder
+		// 9. Compute user_id_hash_requester and user_id_hash_responder
 		// Za = SM3( ENTL || ID || a || b || xG || yG || xA || yA )
-		ipp_ret = ippsGFpECScratchBufferSize(nScalars, pEC, &pBufferSize);
+		ipp_ret = ippsGFpECScratchBufferSize(nScalars, hashHandle->pEC, &pBufferSize);
 		if (ipp_ret != ippStsNoErr) {
 			printf("Error: fail to get the size of the scratch buffer\n");
-			ret = -11;
+			ret = -12;
 			break;
 		}
 		pScratchBuffer = (Ipp8u*)malloc(pBufferSize);
 		if (pScratchBuffer == NULL) {
 			printf("Error: fail to allocate memory for pScratchBuffer\n");
-			ret = -12;
-			break;
-		}
-		ipp_ret = ippsGFpECUserIDHashSM2(user_id_hash_requester, (const Ipp8u *)user_id_requester, user_id_len_requester, requesterRegPublicKey, pEC, pScratchBuffer);
-		if (ipp_ret != ippStsNoErr) {
-			printf("Error: fail to compute user_id_hash_requester\n");
 			ret = -13;
 			break;
 		}
-		ipp_ret = ippsGFpECUserIDHashSM2(user_id_hash_responder, (const Ipp8u *)user_id_responder, user_id_len_responder, responderRegPublicKey, pEC, pScratchBuffer);
+		ipp_ret = ippsGFpECUserIDHashSM2(user_id_hash_requester, (const Ipp8u *)user_id_requester, user_id_len_requester, requesterRegPublicKey, hashHandle->pEC, pScratchBuffer);
 		if (ipp_ret != ippStsNoErr) {
-			printf("Error: fail to compute user_id_hash_responder\n");
+			printf("Error: fail to compute user_id_hash_requester\n");
 			ret = -14;
 			break;
 		}
+		ipp_ret = ippsGFpECUserIDHashSM2(user_id_hash_responder, (const Ipp8u *)user_id_responder, user_id_len_responder, responderRegPublicKey, hashHandle->pEC, pScratchBuffer);
+		if (ipp_ret != ippStsNoErr) {
+			printf("Error: fail to compute user_id_hash_responder\n");
+			ret = -15;
+			break;
+		}
 
-		// 9. Set up the SM2 Key Exchange ECC context for further operation of the SM2 Key Exchange algorithm
+		// 10. Set up the SM2 Key Exchange ECC context for further operation of the SM2 Key Exchange algorithm
 		ipp_ret = ippsGFpECKeyExchangeSM2_Setup(user_id_hash_requester, user_id_hash_responder, requesterRegPublicKey, responderRegPublicKey, requesterEphPublicKey, responderEphPublicKey, pKERequester);
 		if (ipp_ret != ippStsNoErr) {
 			printf("Error: fail to set up requester SM2 Key Exchange ECC context\n");
@@ -691,6 +825,7 @@ int ecall_sm2_key_exchange(void)
 	SAFE_FREE_HEAP(pScratchBuffer, pBufferSize);
 	SAFE_FREE_HEAP(pKEResponder, pSize);
 	SAFE_FREE_HEAP(pKERequester, pSize);
+	free_ECC_sm2(hashHandle);
 	SAFE_FREE(responderEphPublicKey);
 	SAEF_FREE_ECC_PRI_KEY(responderEphPrivateKey);
 	SAFE_FREE(requesterEphPublicKey);
@@ -699,73 +834,96 @@ int ecall_sm2_key_exchange(void)
 	SAEF_FREE_ECC_PRI_KEY(responderRegPrivateKey);
 	SAFE_FREE(requesterRegPublicKey);
 	SAEF_FREE_ECC_PRI_KEY(requesterRegPrivateKey);
-	SAFE_FREE(pEC);
 
 	return ret;
 }
 
 /* SM2 encrypt(GM version) */
-static int sm2_encrypt_gm(const char* message, int message_len, Ipp8u** cipher_text, int* cipher_len, IppsECCPState *pECCPS, IppsECCPPointState *regPublicKey, IppsECCPPointState *ephPublicKey, IppsBigNumState *ephPrivateKey)
+static int sm2_encrypt_gm(const char* message, int message_len, Ipp8u** cipher_text, int* cipher_len, IppsGFpECPoint *regPublicKey, IppsGFpECPoint *ephPublicKey, IppsBigNumState *ephPrivateKey)
 {
+	Sm2EcHandle *ecHandle = NULL;
+	IppsGFpECState *pEC = NULL;
 	int maxOutlen = 0;
 	int pOutSize = 0;
-	IppsGFpECState *pEC = NULL;
-	int nScalars = 1;
+	int nScalars = 2; // ippsGFpECEncryptSM2_Ext requires nScalars >= 2
 	int pBufferSize = 0;
 	Ipp8u* pScratchBuffer = NULL;
 	IppStatus ipp_ret = ippStsNoErr;
 	int ret = 0;
 
 	do {
+		// 1. Create ECC context for SM2
+		ecHandle = new_ECC_sm2();
+		if (ecHandle == NULL) {
+			printf("Error: fail to create ecc context for encrypt\n");
+			ret = -1;
+			break;
+		}
+		pEC = ecHandle->pEC;
+
+		// 2. Allocate cipher text buffer
 		maxOutlen = 64 + message_len + 32 + 1; // encrypt/decrypt buffer = pubkey (64B) + message (inpLen) + hash (32B)
 		*cipher_text = (Ipp8u*)malloc(maxOutlen);
 		if (*cipher_text == NULL) {
 			printf("Error: fail to allocate memory for cipher text\n");
-			ret = -1;
+			ret = -2;
 			break;
 		}
 		memset(*cipher_text, 0, maxOutlen);
-		pEC = (IppsGFpECState*)pECCPS;
+		
+		// 3. Get scratch buffer size
 		ipp_ret = ippsGFpECScratchBufferSize(nScalars, pEC, &pBufferSize);
 		if (ipp_ret != ippStsNoErr) {
 			printf("Error: fail to get the size of the scratch buffer\n");
-			ret = -2;
+			ret = -3;
 			break;
 		}
 		pScratchBuffer = (Ipp8u*)malloc(pBufferSize);
 		if (pScratchBuffer == NULL) {
 			printf("Error: fail to allocate memory for the scratch buffer\n");
-			ret = -3;
+			ret = -4;
 			break;
 		}
-		ipp_ret = ippsGFpECEncryptSM2_Ext(*cipher_text, maxOutlen, &pOutSize, (Ipp8u*)message, message_len, regPublicKey, ephPublicKey, ephPrivateKey, pEC, pScratchBuffer);
+		ipp_ret = ippsGFpECEncryptSM2_Ext(*cipher_text, maxOutlen, &pOutSize, (const Ipp8u*)message, message_len, regPublicKey, ephPublicKey, ephPrivateKey, pEC, pScratchBuffer);
 		if (ipp_ret != ippStsNoErr) {
 			printf("Error: fail to encrypt.\n");
-			ret = -4;
+			ret = -5;
 			break;
 		}
 		*cipher_len = pOutSize;
 	} while(0);
 
 	SAFE_FREE_HEAP(pScratchBuffer, pBufferSize);
+	free_ECC_sm2(ecHandle);
 
 	return ret;
 }
 
 /* SM2 decrypt(GM version) */
-static int sm2_decrypt_gm(const Ipp8u* cipher_text, int message_len, Ipp8u** plain_text, int* plain_len, IppsECCPState *pECCPS, IppsBigNumState *regPrivateKey)
+static int sm2_decrypt_gm(const Ipp8u* cipher_text, int cipher_len, Ipp8u** plain_text, int* plain_len, IppsBigNumState *regPrivateKey)
 {
+	Sm2EcHandle *ecHandle = NULL;
+	IppsGFpECState *pEC = NULL;
 	int maxOutlen = 0;
 	int pOutSize = 0;
-	IppsGFpECState *pEC = NULL;
-	int nScalars = 1;
+	int nScalars = 2; // ippsGFpECDecryptSM2_Ext requires nScalars >= 2
 	int pBufferSize = 0;
 	Ipp8u* pScratchBuffer = NULL;
 	IppStatus ipp_ret = ippStsNoErr;
 	int ret = 0;
 
 	do {
-		maxOutlen = 64 + message_len + 32 + 1; // encrypt/decrypt buffer = pubkey (64B) + message (inpLen) + hash (32B)
+		// 1. Create ECC context for SM2
+		ecHandle = new_ECC_sm2();
+		if (ecHandle == NULL) {
+			printf("Error: fail to create ecc context for decrypt\n");
+			ret = -1;
+			break;
+		}
+		pEC = ecHandle->pEC;
+
+		// 2. Allocate plain text buffer
+		maxOutlen = cipher_len + 1; // Conservative upper bound for plaintext
 		*plain_text = (Ipp8u*)malloc(maxOutlen);
 		if (*plain_text == NULL) {
 			printf("Error: fail to allocate memory for plain text\n");
@@ -773,7 +931,8 @@ static int sm2_decrypt_gm(const Ipp8u* cipher_text, int message_len, Ipp8u** pla
 			break;
 		}
 		memset(*plain_text, 0, maxOutlen);
-		pEC = (IppsGFpECState*)pECCPS;
+		
+		// 3. Get scratch buffer size
 		ipp_ret = ippsGFpECScratchBufferSize(nScalars, pEC, &pBufferSize);
 		if (ipp_ret != ippStsNoErr) {
 			printf("Error: fail to get the size of the scratch buffer\n");
@@ -786,7 +945,7 @@ static int sm2_decrypt_gm(const Ipp8u* cipher_text, int message_len, Ipp8u** pla
 			ret = -3;
 			break;
 		}
-		ipp_ret = ippsGFpECDecryptSM2_Ext(*plain_text, maxOutlen, &pOutSize, cipher_text, maxOutlen, regPrivateKey, pEC, pScratchBuffer);
+		ipp_ret = ippsGFpECDecryptSM2_Ext(*plain_text, maxOutlen, &pOutSize, cipher_text, cipher_len, regPrivateKey, pEC, pScratchBuffer);
 		if (ipp_ret != ippStsNoErr) {
 			printf("Error: fail to decrypt.\n");
 			ret = -4;
@@ -796,6 +955,7 @@ static int sm2_decrypt_gm(const Ipp8u* cipher_text, int message_len, Ipp8u** pla
 	} while(0);
 
 	SAFE_FREE_HEAP(pScratchBuffer, pBufferSize);
+	free_ECC_sm2(ecHandle);
 
 	return ret;
 }
@@ -803,29 +963,19 @@ static int sm2_decrypt_gm(const Ipp8u* cipher_text, int message_len, Ipp8u** pla
 /* SM2 encrypt and decrypt (GM version, standard is GM/T 0003-2012) */
 int ecall_sm2_encrypt_decrypt_gm(void)
 {
-	IppsECCPState *pECCPS = NULL;
 	IppsBigNumState *regPrivateKey = NULL;
-	IppsECCPPointState *regPublicKey = NULL;
+	IppsGFpECPoint *regPublicKey = NULL;
 	IppsBigNumState *ephPrivateKey = NULL;
-	IppsECCPPointState *ephPublicKey = NULL;
+	IppsGFpECPoint *ephPublicKey = NULL;
 	Ipp8u *cipher_text = NULL, *plain_text = NULL;
 	int cipher_len = 0, plain_len = 0;
-	IppStatus ipp_ret = ippStsNoErr;
 	int ret = 0;
 
-	char *message = "context need to be encrypted";
-	int message_len = strlen(message);
+	const char *message = "context need to be encrypted";
+	int message_len = (int)strlen(message);
 
 	do {
-		// 1. Create ECC context for SM2
-		pECCPS = new_ECC_sm2();
-		if (pECCPS == NULL) {
-			printf("Error: fail to create ecc context for sm2\n");
-			ret = -1;
-			break;
-		}
-
-		// 2. Create regular private key and public key
+		// 1. Create regular private key and public key
 		ret = sm2_key_generation(&regPrivateKey, &regPublicKey);
 		if (ret != 0) {
 			printf("Error: fail to generate regular private key and public key\n");
@@ -833,7 +983,7 @@ int ecall_sm2_encrypt_decrypt_gm(void)
 			break;
 		}
 
-		// 3. Generate ephemeral private and public key pairs
+		// 2. Generate ephemeral private and public key pairs
 		ret = sm2_key_generation(&ephPrivateKey, &ephPublicKey);
 		if (ret != 0) {
 			printf("Error: fail to generate ephemeral private key and public key\n");
@@ -841,24 +991,24 @@ int ecall_sm2_encrypt_decrypt_gm(void)
 			break;
 		}
 
-		// 4. Encrypt
-		ret = sm2_encrypt_gm(message, message_len, &cipher_text, &cipher_len, pECCPS, regPublicKey, ephPublicKey, ephPrivateKey);
+		// 3. Encrypt
+		ret = sm2_encrypt_gm(message, message_len, &cipher_text, &cipher_len, regPublicKey, ephPublicKey, ephPrivateKey);
 		if (ret != 0) {
 			printf("Error: fail to encrypt.\n");
 			ret = -4;
 			break;
 		}
 
-		// 5. Decrypt
-		ret = sm2_decrypt_gm(cipher_text, message_len, &plain_text, &plain_len, pECCPS, regPrivateKey);
+		// 4. Decrypt
+		ret = sm2_decrypt_gm(cipher_text, cipher_len, &plain_text, &plain_len, regPrivateKey);
 		if (ret != 0) {
 			printf("Error: fail to decrypt.\n");
 			ret = -5;
 			break;
 		}
 
-		// 6. Compare decrypted message and original message
-		if(strlen((char*)message) != strlen((char*)plain_text) || memcmp(message, plain_text, strlen((char*)message)) != 0)
+		// 5. Compare decrypted message and original message
+		if(strlen(message) != strlen((char*)plain_text) || memcmp(message, plain_text, strlen(message)) != 0)
 		{
 			printf("Error: decrypted message does not match original message!\n");
 			ret = -6;
@@ -873,7 +1023,6 @@ int ecall_sm2_encrypt_decrypt_gm(void)
 	SAEF_FREE_ECC_PRI_KEY(ephPrivateKey);
 	SAFE_FREE(regPublicKey);
 	SAEF_FREE_ECC_PRI_KEY(regPrivateKey);
-	SAFE_FREE(pECCPS);
 
 	return ret;
 }
@@ -917,7 +1066,7 @@ int ecall_sm3(void)
 
 		// 2. Update
 		// Digest the message of specified length
-		status = ippsHashUpdate_rmf(msg, strlen((char *)msg), pSM3);
+		status = ippsHashUpdate_rmf(msg, (int)strlen((char *)msg), pSM3);
 		if (status != ippStsNoErr) {
 			printf("Error: fail to digest the message of specified length\n");
 			ret = -4;
