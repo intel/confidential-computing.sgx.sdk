@@ -1,5 +1,5 @@
 diff --git a/src/exception.cc b/src/exception.cc
-index 9bcf903..ccf21b9 100644
+index 9bcf903..18fcdc9 100644
 --- a/src/exception.cc
 +++ b/src/exception.cc
 @@ -25,8 +25,16 @@
@@ -19,7 +19,7 @@ index 9bcf903..ccf21b9 100644
  #include <stdio.h>
  #include <string.h>
  #include <stdint.h>
-@@ -36,6 +44,13 @@
+@@ -36,6 +44,34 @@
  #include "atomic.h"
  #include "cxxabi.h"
  
@@ -30,9 +30,44 @@ index 9bcf903..ccf21b9 100644
 +SGX_ACCESS_VERSION(tcxx, 1)
 +#endif
 +
++/**
++ * SGX_INVOKE_HANDLER - invoke a terminate/unexpected handler safely.
++ *
++ * Inside an SGX enclave a handler must never be allowed to throw or
++ * otherwise transfer control back into enclave code.  The SGX variant
++ * wraps the call in try/catch so that even a handler that throws
++ * (undefined behaviour per the standard) deterministically reaches
++ * abort().  Outside SGX the handler is called directly.
++ */
++#ifdef INTEL_SGX_MOD
++#define SGX_INVOKE_HANDLER(handler_expr) \
++	do { \
++		try { (handler_expr)(); } \
++		catch (...) { /* swallow */ } \
++		abort(); \
++	} while (0)
++#else
++#define SGX_INVOKE_HANDLER(handler_expr) \
++	(handler_expr)()
++#endif
++
  #pragma weak pthread_key_create
  #pragma weak pthread_setspecific
  #pragma weak pthread_getspecific
+@@ -1529,11 +1565,11 @@ namespace std
+ 		static __cxa_thread_info *info = thread_info();
+ 		if (0 != info && 0 != info->terminateHandler)
+ 		{
+-			info->terminateHandler();
++			SGX_INVOKE_HANDLER(info->terminateHandler);
+ 		}
+ 		else
+ 		{
+-			terminateHandler.load()();
++			SGX_INVOKE_HANDLER(terminateHandler.load());
+ 		}
+ 		// Should not be reached - a terminate handler is not expected
+ 		// to return.
 diff --git a/src/guard.cc b/src/guard.cc
 index cb58aa7..9eb6e32 100644
 --- a/src/guard.cc
