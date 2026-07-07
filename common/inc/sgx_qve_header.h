@@ -137,7 +137,17 @@ typedef struct _sgx_ql_qv_supplemental_t
     time_t qe_iden_tcb_level_date_tag;            ///< TCB date for the current QE identity TCB level
     uint32_t qe_iden_tcb_eval_ref_num;            ///< The TCB evaluation data number of QE Identity
     sgx_ql_qv_result_t qe_iden_status;            ///< QEIdentity TCB status
-    time_t platform_tcb_level_date_tag;                    ///< TCB date for the current platform TCB level
+    time_t platform_tcb_level_date_tag;           ///< TCB date for the matched platform TCB level
+
+    // Appended in supplemental data minor_version 5.
+    // A TDX TD-Preserving update leaves a TD with two TCB levels: the one it
+    // launched at and its current one. platform_tcb_level_date_tag / sa_list
+    // (and the returned quote verification result) report the launch level; the
+    // fields below report the same endorsements evaluated for the current level.
+    // Equal to the launch values for SGX and for TDs with no TD-Preserving update.
+    time_t tcb_date_current;                ///< platform_tcb_level_date_tag, evaluated for the current TCB level
+    sgx_ql_qv_result_t tcb_status_current;  ///< TCB status, evaluated for the current TCB level
+    char sa_list_current[MAX_SA_LIST_SIZE]; ///< sa_list, evaluated for the current TCB level
 
 } sgx_ql_qv_supplemental_t;
 
