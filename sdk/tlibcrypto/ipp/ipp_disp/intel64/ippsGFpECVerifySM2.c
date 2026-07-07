@@ -35,10 +35,13 @@ IPPFUN(IppStatus, sgx_disp_ippsGFpECVerifySM2, (const IppsBigNumState* pMsgDiges
 {
     Ipp64u _features = ippcpGetEnabledCpuFeatures();
 
+# if 0
+    // Temporarily disable the AVX-512 IFMA variant
     if (AVX3I_FEATURES == (_features & AVX3I_FEATURES))
     {
         return k1_ippsGFpECVerifySM2(pMsgDigest, pRegPublic, pSignR, pSignS, pResult, pEC, pScratchBuffer);
     }
+#endif
     if (ippCPUID_AVX2 == (_features & ippCPUID_AVX2))
     {
         return l9_ippsGFpECVerifySM2(pMsgDigest, pRegPublic, pSignR, pSignS, pResult, pEC, pScratchBuffer);
