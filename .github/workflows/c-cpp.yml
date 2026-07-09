@@ -88,12 +88,13 @@ jobs:
                 fakeroot debhelper dpkg-dev git ca-certificates unzip
 
           - os-name: CentOS
-            # Stream 10 (gcc 14), digest-pinned for reproducibility. gcc 14 with Stream 10's
-            # default -O2 -D_FORTIFY_SOURCE=3 has a higher peak RSS per TU than gcc 11; under
-            # the ARC runner's small container memory cgroup (no swap) a naive -j$(nproc)
-            # overshoots the cap and wedges the build in reclaim. The memory-aware -j step
-            # below bounds parallelism to the cgroup budget to keep this leg green.
-            container-image: quay.io/centos/centos:stream10@sha256:ac9f9e2f8cdd9f6a1be56ac27fd6af0ba8546f066487c4b0c4bd75d224b61ec4
+            # Stream 10 (gcc 14). Uses the rolling :stream10 tag, not a digest pin: Stream
+            # rebuilds often and quay GCs unreferenced manifests, so a pin eventually 404s and
+            # wedges CI (retries can't help). Trade-off: builds aren't bit-for-bit reproducible.
+            # The memory-aware -j step below caps parallelism to the container's cgroup budget:
+            # gcc 14 at -O2 -D_FORTIFY_SOURCE=3 has a high peak RSS/TU, so a naive -j$(nproc)
+            # overshoots the small (no-swap) cgroup and wedges the build in reclaim.
+            container-image: quay.io/centos/centos:stream10
             pkg-type: rpm
             psw-pkg-target: rpm_psw_pkg
             build-deps: |
