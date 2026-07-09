@@ -30,6 +30,7 @@
  */
 
 #include <sgx_trts.h>
+#include <stdint.h>
 #include "sl_fcall_mngr_common.h"
 
 // switchless call managers are allocated on untrusted side, then pointers to data structures are passed to the enclave.
@@ -63,12 +64,18 @@ uint32_t sl_call_mngr_clone(struct sl_call_mngr* mngr, const struct sl_call_mngr
     PANIC_ON(call_type2direction(type_u) != sl_siglines_get_direction(&mngr->siglns));
 
     struct sl_call_task* tasks_u = untrusted->tasks;
+    uint64_t num_tasks = sl_siglines_size(&mngr->siglns);
 
     if (tasks_u == NULL)
         return EINVAL;
 
+    if (num_tasks > (uint64_t)(SIZE_MAX / sizeof(tasks_u[0])))
+        return EINVAL;
+
+    size_t tasks_size = (size_t)num_tasks * sizeof(tasks_u[0]);
+
     // check that the array of task structures is outside enclave
-    PANIC_ON(!sgx_is_outside_enclave(tasks_u, sizeof(tasks_u[0]) * sl_siglines_size(&mngr->siglns)));
+    PANIC_ON(!sgx_is_outside_enclave(tasks_u, tasks_size));
     sgx_lfence();
 
     mngr->tasks = tasks_u;
