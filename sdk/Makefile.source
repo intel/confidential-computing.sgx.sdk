@@ -170,7 +170,8 @@ tlibcxx: $(BUILD_DIR)
 .PHONY: tservice
 tservice: $(LIBTSE)
 
-$(LIBTSE): selib tseal ec_dh_lib
+# Depend on actual files, not PHONY targets, so parallel make waits for the files to exist.
+$(LIBTSE): $(LINUX_SDK_DIR)/selib/linux/libselib.a $(LINUX_SDK_DIR)/tseal/linux/libtSeal.a $(LINUX_SDK_DIR)/ec_dh_lib/libsgx_dh.a
 	@$(MKDIR) $(BUILD_DIR)/.tservice
 	@$(RM) -f $(BUILD_DIR)/.tservice/*
 	cd $(BUILD_DIR)/.tservice && $(AR) x $(LINUX_SDK_DIR)/tseal/linux/libtSeal.a
@@ -190,6 +191,12 @@ tseal:
 .PHONY: ec_dh_lib
 ec_dh_lib:
 	$(MAKE) -C ec_dh_lib/
+
+$(LINUX_SDK_DIR)/selib/linux/libselib.a: selib
+
+$(LINUX_SDK_DIR)/tseal/linux/libtSeal.a: tseal
+
+$(LINUX_SDK_DIR)/ec_dh_lib/libsgx_dh.a: ec_dh_lib
 
 # ---------------------------------------------------
 #  Other trusted libraries
