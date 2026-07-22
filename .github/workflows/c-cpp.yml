@@ -80,12 +80,62 @@ jobs:
             pkg-type: deb
             psw-pkg-target: deb
             build-deps: |
-              set -xeuo pipefail
-              sudo -E apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15
-              sudo -E apt-get install -y --no-install-recommends \
-                build-essential ocaml ocamlbuild automake autoconf libtool wget \
-                python-is-python3 libssl-dev cmake perl file ccache \
-                fakeroot debhelper dpkg-dev git ca-certificates unzip
+              set -euo pipefail
+              # Attempt 1 uses the runner's default sources and fails fast (no per-file
+              # retries, short timeout); attempts 2+ switch to the Azure Ubuntu mirror and
+              # grow more patient (per-file retries, timeout scaled by attempt). The last
+              # attempt installs even if the index refresh failed.
+              # Future optimization: cache /var/cache/apt/archives/*.deb to install offline on repeat runs.
+              for attempt in 1 2 3; do
+                echo "::group::apt prerequisites (attempt ${attempt}/3)"
+                if [ "$attempt" -ge 2 ]; then
+                  for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+                    [ -f "$f" ] || continue
+                    sudo sed -Ei 's#(https?)://(archive|security)\.ubuntu\.com/ubuntu#\1://azure.archive.ubuntu.com/ubuntu#g' "$f"
+                  done
+                fi
+
+                retries=$(( attempt == 1 ? 0 : 2 ))
+                timeout=$(( attempt * 5 ))
+                upd_ok=1
+                set -x
+                sudo -E apt-get update \
+                    -o APT::Update::Error-Mode=any \
+                    -o Acquire::Retries="$retries" \
+                    -o Acquire::ForceIPv4=true \
+                    -o Acquire::http::Timeout="$timeout" \
+                    -o Acquire::https::Timeout="$timeout" || upd_ok=0
+                { set +x; } 2>/dev/null
+
+                if [ "$upd_ok" -eq 0 ] && [ "$attempt" -lt 3 ]; then
+                  echo "::endgroup::"
+                  sleep $((attempt * 15))
+                  continue
+                fi
+
+                set -x
+                # apt-get install: apply Retries/ForceIPv4 for consistency with update, but
+                # keep default timeout (120s) to avoid spurious failures on large .deb downloads.
+                if sudo -E apt-get install -y --no-install-recommends \
+                    -o Acquire::Retries="$retries" \
+                    -o Acquire::ForceIPv4=true \
+                    build-essential ocaml ocamlbuild automake autoconf libtool wget \
+                    python-is-python3 libssl-dev cmake perl file ccache \
+                    fakeroot debhelper dpkg-dev git ca-certificates unzip; then
+                  { set +x; } 2>/dev/null
+                  echo "::endgroup::"
+                  break
+                fi
+                { set +x; } 2>/dev/null
+
+                echo "::endgroup::"
+                if [ "$attempt" -eq 3 ]; then
+                  echo "apt prerequisites failed after ${attempt} attempts" >&2
+                  exit 1
+                fi
+
+                sleep $((attempt * 15))
+              done
 
           - os-name: CentOS
             # Stream 10 (gcc 14). Uses the rolling :stream10 tag, not a digest pin: Stream
