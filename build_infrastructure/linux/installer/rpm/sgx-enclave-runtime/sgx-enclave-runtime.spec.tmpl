@@ -1,0 +1,136 @@
+#
+# Copyright(c) 2011-2026 Intel Corporation
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+%define _enclave_runtime_version @enclave_runtime_version@
+%define _license_file COPYING
+
+Name:           sgx-enclave-runtime
+Version:        %{_enclave_runtime_version}
+Release:        1%{?dist}
+Summary:        Intel(R) Software Guard Extensions - Enclave Runtime
+Requires:       libsgx-urts >= %{version}-%{release} libsgx-enclave-common >= %{version}-%{release}
+
+License:        BSD License
+URL:            https://github.com/intel/confidential-computing.sgx.sdk
+Source0:        sgx-enclave-runtime-%{version}.tar.gz
+
+# uRTS + enclave_common only: C/C++ toolchain, make, binutils (ld/ar/objcopy),
+# and python for the sgx-asm-pp.py assembly preprocessor. Uses prebuilt openssl,
+# so no openssl/protobuf/ocaml/nasm/etc. from the PSW spec are needed here.
+BuildRequires:  binutils
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
+BuildRequires:  make
+BuildRequires:  python3
+
+%description
+Intel(R) Software Guard Extensions - Enclave Runtime (uRTS and enclave common loader)
+
+%package -n libsgx-headers
+Version:       %{_enclave_runtime_version}
+Summary:       Intel(R) Software Guard Extensions Basic Headers
+
+%description -n libsgx-headers
+Intel(R) Software Guard Extensions Basic Headers
+
+%package -n libsgx-urts
+Version:       %{_enclave_runtime_version}
+Summary:       Intel(R) Software Guard Extensions uRTS
+Requires:      libsgx-enclave-common >= %{version}-%{release}
+
+%description -n libsgx-urts
+Intel(R) Software Guard Extensions uRTS
+
+%package -n libsgx-enclave-common
+Version:       %{_enclave_runtime_version}
+Summary:       Intel(R) Software Guard Extensions Enclave Common Loader
+
+%description -n libsgx-enclave-common
+Intel(R) Software Guard Extensions Enclave Common Loader
+
+%package -n libsgx-enclave-common-devel
+Version:       %{_enclave_runtime_version}
+Summary:       Intel(R) Software Guard Extensions Enclave Common Loader for Developers
+Requires:      libsgx-enclave-common = %{version}-%{release} libsgx-headers >= %{version}-%{release}
+
+%description -n libsgx-enclave-common-devel
+Intel(R) Software Guard Extensions Enclave Common Loader for Developers
+
+%package -n sgx-enclave-runtime-devel
+Version:       %{_enclave_runtime_version}
+Summary:       Intel(R) Software Guard Extensions Enclave Runtime for Developers
+Requires:      libsgx-headers >= %{version}-%{release} libsgx-enclave-common-devel = %{version}-%{release}
+
+%description -n sgx-enclave-runtime-devel
+Intel(R) Software Guard Extensions Enclave Runtime developer package (headers and devel deps)
+
+%prep
+%setup -qc
+
+%build
+%undefine _auto_set_build_flags
+# uRTS pulls in libsgx_enclave_common as a build dependency; building it here
+# produces both runtime libraries. Uses in-tree common/inc for SGX public headers
+# instead of an installed SDK (SGX_HEADER_DIR overrides the default /opt/intel/sgxsdk/include).
+make %{?_smp_mflags} -C enclave_runtime all SGX_HEADER_DIR=$PWD/common/inc
+
+%install
+make -I build_infrastructure/linux/installer/common/sgx-enclave-runtime -f build_infrastructure/linux/installer/common/sgx-enclave-runtime/Makefile SRCDIR=. DESTDIR=%{?buildroot} install
+
+for pkg in $(ls -A %{?buildroot} 2> /dev/null |grep -v "license"); do
+    install -d %{?buildroot}/${pkg}/%{_docdir}/${pkg}
+    find %{?buildroot}/license -type f -print0 | \
+    xargs -0 -n1 cat >> %{?buildroot}/${pkg}/%{_docdir}/${pkg}/%{_license_file}
+    find %{?buildroot}/${pkg} -type d -exec \
+    sh -c '(ls -p "{}"|grep />/dev/null)||echo "{}"' \; | \
+    sed -e "s#^%{?buildroot}/${pkg}##" | \
+    grep -v "^%{_libdir}" | \
+    grep -v "^%{_includedir}" | \
+    grep -v "^%{_sysconfdir}" | \
+    sed -e "s#^#%dir #" > %{_specdir}/list-${pkg}
+    for f in $(find %{?buildroot}/${pkg}); do
+        if [ -d ${f} ]; then
+            continue
+        else
+            echo ${f} | \
+            sed -e "s#^%{?buildroot}/${pkg}##" >> %{_specdir}/list-${pkg}
+        fi
+    done
+    cp -r %{?buildroot}/${pkg}/* %{?buildroot}/
+    rm -fr %{?buildroot}/${pkg}
+    sed -i -e 's:^/etc/.*\.conf:%config &:' %{_specdir}/list-${pkg}
+done
+rm -fr %{?buildroot}/license
+
+%clean
+make -C enclave_runtime clean
+
+# Meta-package: no files, only dependencies on the runtime subpackages.
+%files
+
+# Meta-package: no files, only dependencies on the developer subpackages.
+%files -n sgx-enclave-runtime-devel
+
+%files -n libsgx-headers -f %{_specdir}/list-libsgx-headers
+%files -n libsgx-urts -f %{_specdir}/list-libsgx-urts
+%files -n libsgx-enclave-common -f %{_specdir}/list-libsgx-enclave-common
+%files -n libsgx-enclave-common-devel -f %{_specdir}/list-libsgx-enclave-common-devel
+
+%post -n libsgx-enclave-common
+trigger_udev() {
+    if ! command -v udevadm &> /dev/null; then
+        return 0
+    fi
+    udevadm control --reload || :
+    udevadm trigger || :
+}
+
+trigger_udev
+
+%changelog
+* Mon Jul 13 2026 Intel Confidential Computing Team <confidential.computing@intel.com> - 2.30.100.1-1
+- Release v2.30
+  Initial release of sgx-enclave-runtime package, extracted from the PSW spec and split into multiple subpackages for better modularity.
+  See release notes at https://github.com/intel/confidential-computing.sgx/releases/tag/sgx_2.30 for more details and historical changelog

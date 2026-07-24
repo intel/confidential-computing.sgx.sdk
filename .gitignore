@@ -72,6 +72,9 @@ build_infrastructure/linux/installer/deb/*/*-*
 build_infrastructure/linux/installer/rpm/**/*.rpm
 build_infrastructure/linux/installer/rpm/*/*-[0-9]*
 
+build_infrastructure/linux/installer/rpm/sgx-enclave-runtime/*.tar.gz
+build_infrastructure/linux/installer/rpm/sgx-enclave-runtime/linux-sgx_sgx-enclave-runtime
+
 # Python cache files
 __pycache__/
 *.pyc

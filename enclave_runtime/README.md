@@ -22,7 +22,7 @@ For repository context see [../README.md#repository-layout](../README.md#reposit
 > [!NOTE]
 > `liburts_internal.so` is built alongside `libsgx_urts.so` for internal/runtime-private use by the AESM side of the Intel&reg; SGX Platform Software (PSW); see the [Intel&reg; SGX PSW section](../README.md#build-the-intel-sgx-enclave-runtime-packages). In practice, its build differs from the public library mainly because it folds the objects from `libsgx_enclave_common.a` into the shared object, whereas `libsgx_urts.so` links `libsgx_enclave_common` dynamically.[^urts-internal]
 > 
-> Historically, before the [Intel&reg; SGX SDK/PSW 2.28 release](https://github.com/intel/confidential-computing.sgx/releases/tag/sgx_2.28), the analogous internal uRTS code in `psw/urts/linux/urts_internal.cpp` also exposed AESM-facing launch helpers such as `init_get_launch_token()`, `sgx_create_le()`, and `is_launch_token_required()` for the deprecated Launch Enclave / whitelist-management flow that 2.28 removed code support for.
+> Historically, before the [Intel&reg; SGX SDK/PSW 2.28 release](https://github.com/intel/confidential-computing.sgx/releases/tag/sgx_2.28), the analogous internal uRTS code in `enclave_runtime/urts/linux/urts_internal.cpp` also exposed AESM-facing launch helpers such as `init_get_launch_token()`, `sgx_create_le()`, and `is_launch_token_required()` for the deprecated Launch Enclave / whitelist-management flow that 2.28 removed code support for.
 
 [^urts-internal]: Implementation detail: the internal build also uses a separate linker version script, [`urts_internal.lds`](urts/linux/urts_internal.lds), with a narrower export surface than [`urts.lds`](urts/linux/urts.lds).
 

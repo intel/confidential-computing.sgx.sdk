@@ -158,8 +158,16 @@ rpm_libsgx_headers_pkg:
 rpm_psw_pkg: rpm_enclave_runtime rpm_libsgx_headers_pkg
 
 # All RPMs
+# Build in two serial phases on purpose: rpm_sdk_pkg runs the destructive `sdk` target
+# (`make -C sdk/ clean` LOAD/CF/default), which wipes the shared sdk/build/linux; the
+# enclave-runtime packages build their libs (enclave_common/urts) into that SAME dir.
+# As parallel prerequisites under -j a clean pass could delete the freshly-built runtime
+# .so before it is packaged. An order-only prereq on the shared rpm_enclave_runtime would
+# force standalone runtime builds to drag in the whole SDK, so sequence here instead.
 .PHONY: rpm
-rpm: rpm_enclave_runtime rpm_libsgx_headers_pkg rpm_sdk_pkg
+rpm:
+	$(MAKE) rpm_sdk_pkg
+	$(MAKE) rpm_enclave_runtime rpm_libsgx_headers_pkg
 
 .PHONY: deb_local_repo rpm_local_repo
 deb_local_repo rpm_local_repo:
@@ -186,7 +194,13 @@ clean:
 # A "catch all" target to build the SDK and enclave runtime components (incl. packaging) in their default flavors.
 
 .PHONY: _release_deps
-_release_deps: sdk_install_pkg $(RELEASE_PKG_FORMAT)_psw_pkg | preparation
+# Same shared-sdk/build/linux hazard as the `rpm` target: sdk_install_pkg runs the
+# destructive `sdk` build while $(RELEASE_PKG_FORMAT)_psw_pkg builds the enclave runtime
+# into the same dir. Sequence them (SDK first) so they cannot race under -j; keep
+# preparation as an order-only prereq.
+_release_deps: | preparation
+	$(MAKE) sdk_install_pkg
+	$(MAKE) $(RELEASE_PKG_FORMAT)_psw_pkg
 
 .PHONY: release
 release: preparation _release_deps
