@@ -87,6 +87,7 @@ l=$(($l+1))
 sed -e "s:@linenum@:$l:" \
     -e "s:@md5sum@:$m:"  \
     -e "s:@arch@:$ARCH:"  \
+    -e "s:@sdk_version@:$v:"  \
     $TEMPLATE_FILE > $INSTALLER_NAME
 
 cat ${SCRIPT_DIR}/${TARBALL_NAME} >> $INSTALLER_NAME

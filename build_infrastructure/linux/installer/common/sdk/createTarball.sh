@@ -69,6 +69,10 @@ if [ "$1" = "cve-2020-0551" ]; then
 fi
 python3 ${SCRIPT_DIR}/gen_source.py --bom=../licenses/BOM_license.txt --deliverydir=${ROOT_DIR} --cleanup=false
 
+# Stamp the concrete SDK version into the consumer-facing buildenv.mk so that
+# installed consumers can query $(INSTALLED_SGX_SDK_VERSION) / $(call REQUIRE_SGX_SDK_VERSION,X).
+sed -i "s:@SDK_PKG_VERSION@:$SDK_PKG_VERSION:" ${INSTALL_PATH}/package/buildenv.mk
+
 # Create the tarball
 pushd ${INSTALL_PATH} &> /dev/null
 tar -zcvf ${TARBALL_NAME} *

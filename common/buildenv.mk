@@ -1,35 +1,8 @@
 #
-# Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
+# Copyright(c) 2011-2026 Intel Corporation
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# SPDX-License-Identifier: BSD-3-Clause
 #
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in
-#     the documentation and/or other materials provided with the
-#     distribution.
-#   * Neither the name of Intel Corporation nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-#
-
-# Mitigation options
 
 SGX_TRUSTED_INCLUDE_PATH ?= $(SGX_SDK)/include
 SGX_TRUSTED_LIBRARY_PATH ?= $(SGX_SDK)/lib64
@@ -38,6 +11,8 @@ CC ?= gcc
 CC_VERSION := $(shell $(CC) -dumpversion)
 CC_NO_LESS_THAN_8 := $(shell expr $(CC_VERSION) \>\= "8")
 BINUTILS_DIR ?= /usr/local/bin
+
+# Mitigation options
 
 MITIGATION_CFLAGS += -B$(BINUTILS_DIR)
 MITIGATION_LDFLAGS += -B$(BINUTILS_DIR)
@@ -62,3 +37,26 @@ endif
 
 
 MITIGATION_CFLAGS += $(MITIGATION_ASFLAGS)
+
+# INSTALLED_SGX_SDK_VERSION: version of the installed Intel SGX SDK, e.g. 2.30.100.1.
+# (Empty only in an un-installed source tree, where version checks are skipped.)
+INSTALLED_SGX_SDK_VERSION := @SDK_PKG_VERSION@
+ifneq ($(findstring @,$(INSTALLED_SGX_SDK_VERSION)),)
+    INSTALLED_SGX_SDK_VERSION :=
+endif
+
+# Compares dotted versions numerically; "1" when $(1) >= $(2), else empty.
+# Strips any pre-release/build suffix (e.g., "2.30-alpha" -> "2.30") before comparing.
+_sgx_version_ge = $(shell awk -v v1="$(1)" -v v2="$(2)" 'BEGIN{sub(/[-+].*/,"",v1);sub(/[-+].*/,"",v2);n=split(v1,a,".");m=split(v2,b,".");k=(n>m)?n:m;for(i=1;i<=k;i++){x=(i<=n)?a[i]+0:0;y=(i<=m)?b[i]+0:0;if(x>y){print 1;exit}if(x<y)exit}print 1}')
+
+# SGX_SDK_VERSION_AT_LEAST: use in a condition to branch on the SDK version.
+#   ifneq ($(call SGX_SDK_VERSION_AT_LEAST,2.30),)   # true when SDK is >= 2.30
+SGX_SDK_VERSION_AT_LEAST = $(if $(INSTALLED_SGX_SDK_VERSION),$(call _sgx_version_ge,$(INSTALLED_SGX_SDK_VERSION),$(1)),)
+
+# REQUIRE_SGX_SDK_VERSION: stop the build unless the SDK is at least the given version.
+#   $(call REQUIRE_SGX_SDK_VERSION,2.27)
+REQUIRE_SGX_SDK_VERSION = $(strip \
+    $(if $(INSTALLED_SGX_SDK_VERSION),\
+        $(if $(call SGX_SDK_VERSION_AT_LEAST,$(1)),,\
+            $(error Intel SGX SDK >= $(1) is required, but $(SGX_SDK) provides version $(INSTALLED_SGX_SDK_VERSION))),\
+        $(warning Intel SGX SDK version is unknown; cannot verify the >= $(1) requirement)))
