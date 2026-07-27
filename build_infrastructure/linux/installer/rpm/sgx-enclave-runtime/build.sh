@@ -54,7 +54,7 @@ create_upstream_tarball() {
 
 build_package() {
     pushd ${cur_dir}/${rpm_build_dir} &> /dev/null
-    rpmbuild --define="_topdir `pwd`" --define='_debugsource_template %{nil}' -ba SPECS/${enclave_runtime}.spec
+    rpmbuild --define="_topdir $(pwd)" --define='_debugsource_template %{nil}' --define='debug_package %{nil}' -ba SPECS/${enclave_runtime}.spec
     popd &> /dev/null
 }
 
