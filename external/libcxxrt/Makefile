@@ -46,10 +46,11 @@ CPPFLAGS += -I$(LINUX_SDK_DIR)/trts       \
             -I$(LINUX_SDK_DIR)/trts/linux \
 
 # LIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS: diagnostics are written using printf but printf is not available in sgx_tcxx
-# LIBCXXRT_NO_EMERGENCY_MALLOC: if enabled sgx_tcxx will depend on sgx_pthread
-# INTEL_SGX_MOD: apply Intel customizations for libcxxrt
-CFLAGS   += -DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS -DLIBCXXRT_NO_EMERGENCY_MALLOC -DINTEL_SGX_MOD
-CXXFLAGS += -DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS -DLIBCXXRT_NO_EMERGENCY_MALLOC -DINTEL_SGX_MOD
+# INTEL_SGX_MOD: apply Intel customizations for libcxxrt (SGX-native per-TCS exception
+# state and an sgx_spinlock-backed emergency allocator, so sgx_tcxx does NOT depend on
+# sgx_pthread even with the emergency exception allocator enabled)
+CFLAGS   += -DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS -DINTEL_SGX_MOD
+CXXFLAGS += -DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS -DINTEL_SGX_MOD
 
 # Excluding memory.cc, noexception.cc and libelftc_dem_gnu3.c from compilation because they are not needed for tcxx build. Excluding
 # unnecessary files from compilation narrows the attack surface

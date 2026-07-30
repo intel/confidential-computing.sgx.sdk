@@ -26,9 +26,10 @@ CPPFLAGS += -I$(LINUX_SDK_DIR)/trts       \
             -I$(LINUX_SDK_DIR)/trts/linux \
 
 # DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS: diagnostics are written using printf but printf is not available in sgx_tcxx
-# LIBCXXRT_NO_EMERGENCY_MALLOC: if enabled sgx_tcxx will depend on sgx_pthread
-CFLAGS   += -DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS -DLIBCXXRT_NO_EMERGENCY_MALLOC
-CXXFLAGS += -DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS -DLIBCXXRT_NO_EMERGENCY_MALLOC
+# Note: the emergency exception allocator is enabled (see external/libcxxrt); it is
+# backed by an sgx_spinlock, so sgx_tcxx does NOT depend on sgx_pthread.
+CFLAGS   += -DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS
+CXXFLAGS += -DLIBCXXRT_NO_DEFAULT_TERMINATE_DIAGNOSTICS
 
 CPP_SRCS := $(wildcard memory_manage/new*.cpp) \
             $(wildcard memory_manage/delete*.cpp)

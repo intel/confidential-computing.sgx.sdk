@@ -1,5 +1,5 @@
 diff --git a/src/exception.cc b/src/exception.cc
-index 9bcf903..18fcdc9 100644
+index 9bcf903..3ba67a6 100644
 --- a/src/exception.cc
 +++ b/src/exception.cc
 @@ -25,8 +25,16 @@
@@ -19,12 +19,14 @@ index 9bcf903..18fcdc9 100644
  #include <stdio.h>
  #include <string.h>
  #include <stdint.h>
-@@ -36,6 +44,34 @@
+@@ -36,6 +44,42 @@
  #include "atomic.h"
  #include "cxxabi.h"
  
 +#ifdef INTEL_SGX_MOD
 +#include "se_cdefs.h"
++#include "thread_data.h"
++#include "sgx_spinlock.h"
 +
 +// access the version variable to add a version to tcxx lib
 +SGX_ACCESS_VERSION(tcxx, 1)
@@ -51,11 +53,283 @@ index 9bcf903..18fcdc9 100644
 +	(handler_expr)()
 +#endif
 +
++#ifndef INTEL_SGX_MOD
++/*
++ * INTEL_SGX_MOD: compiled out - the enclave may have no pthread (per-thread state
++ * is in the TCS, the emergency-malloc lock is an sgx_spinlock_t), and its fragile
++ * weak-symbol "is pthread present?" runtime probing cannot work in an enclave.
++ */
  #pragma weak pthread_key_create
  #pragma weak pthread_setspecific
  #pragma weak pthread_getspecific
-@@ -1529,11 +1565,11 @@ namespace std
- 		static __cxa_thread_info *info = thread_info();
+@@ -58,6 +102,7 @@
+ 	if (pthread_cond_wait) pthread_cond_wait(cv, mtx);\
+ 	} while(0)
+ #endif
++#endif /* !INTEL_SGX_MOD */
+ 
+ using namespace ABI_NAMESPACE;
+ 
+@@ -156,6 +201,58 @@ typedef enum
+  * Instances of this structure are allocated lazily - at most one per thread -
+  * and are destroyed on thread termination.
+  */
++#ifdef INTEL_SGX_MOD
++/*
++ * SGX layout note - why the members are reordered and bit-packed.
++ *
++ * Pristine upstream for side-by-side diff:
++ *   https://github.com/libcxxrt/libcxxrt/blob/a6f71cbc3a1e1b8b9df241e081fa0ffdcde96249/src/exception.cc#L159-L195
++ *
++ * In an enclave this struct lives *inline* in thread_data_t::cxx_thread_info,
++ * a FIXED 6-word slot (sys_word_t[6]) that is part of the enclave<->urts ABI,
++ * so it MUST NOT grow.  Upstream is 56 bytes on 64-bit - one word over the
++ * 48-byte budget - so two changes reclaim that word without touching the slot:
++ *   1. Reorder the three pointer-sized members to be adjacent (no interior pad).
++ *   2. Merge the two small scalars - emergencyBuffersHeld (0..4) and
++ *      foreign_exception_state (0..2) - into one 32-bit bitfield unit.
++ * On 32-bit no padding exists to reclaim, so the bitfield merge is what makes
++ * it fit; it is required on both word sizes.  The static_assert below is the
++ * real guard: any field growth fails the build instead of silently corrupting
++ * neighbouring thread_data_t fields.
++ *
++ * Safe to pack: __cxa_thread_info is private to this TU (only its `globals`
++ * sub-object is exposed, always by pointer) and every access is on the current
++ * TCS, hence single-threaded - no torn-read / atomicity hazard.
++ */
++struct __cxa_thread_info
++{
++	/** The termination handler for this thread. */
++	terminate_handler terminateHandler;
++	/** The unexpected exception handler for this thread. */
++	unexpected_handler unexpectedHandler;
++	/** The exception currently running in a cleanup. */
++	_Unwind_Exception *currentCleanup; // INTEL_SGX_MOD: reordered ahead of the packed scalars (keeps pointer members contiguous)
++#ifndef LIBCXXRT_NO_EMERGENCY_MALLOC
++	/** Number of emergency buffers held by this thread (range 0..4 per ABI [3.3.1]). */
++	unsigned int emergencyBuffersHeld : 4; // INTEL_SGX_MOD: int -> 4-bit, packed
++#endif
++	/** Foreign-exception state values. */
++	// INTEL_SGX_MOD: unnamed enum so none/caught/rethrown still resolve while the value lives in the bitfield below
++	enum
++	{
++		none,
++		caught,
++		rethrown
++	};
++	/** Our state with respect to foreign exceptions. */
++	unsigned int foreign_exception_state : 2; // INTEL_SGX_MOD: enum/int -> 2-bit, packed with emergencyBuffersHeld
++	/**
++	 * The public part of this structure, accessible from outside of this
++	 * module.
++	 */
++	__cxa_eh_globals globals;
++};
++#else
+ struct __cxa_thread_info
+ {
+ 	/** The termination handler for this thread. */
+@@ -193,6 +290,19 @@ struct __cxa_thread_info
+ 	 */
+ 	__cxa_eh_globals globals;
+ };
++#endif
++
++#ifdef INTEL_SGX_MOD
++// __cxa_thread_info is stored inline in the fixed per-TCS slot cxx_thread_info
++// (enclave<->urts ABI); fail the build (any word size) if it no longer fits.
++static_assert(sizeof(__cxa_thread_info) <=
++                  sizeof(((thread_data_t *)0)->cxx_thread_info),
++              "__cxa_thread_info must fit in thread_data_t::cxx_thread_info");
++// sizeof() can't catch a bitfield value overflow: guard foreign_exception_state's
++// 2-bit range so a new enumerator fails the build instead of silently truncating.
++static_assert(__cxa_thread_info::rethrown < (1u << 2),
++              "foreign_exception_state bitfield too narrow for its enum values");
++#endif
+ /**
+  * Dependent exception.  This 
+  */
+@@ -374,7 +484,9 @@ static atomic<terminate_handler> terminateHandler = terminate_with_diagnostics;
+ static atomic<unexpected_handler> unexpectedHandler = std::terminate;
+ 
+ /** Key used for thread-local data. */
++#ifndef INTEL_SGX_MOD
+ static pthread_key_t eh_key;
++#endif
+ 
+ 
+ /**
+@@ -397,6 +509,7 @@ static void dependent_exception_cleanup(_Unwind_Reason_Code reason,
+ 	__cxa_free_dependent_exception(static_cast<void*>(ex + 1));
+ }
+ 
++#ifndef INTEL_SGX_MOD
+ /**
+  * Recursively walk a list of exceptions and delete them all in post-order.
+  */
+@@ -434,11 +547,13 @@ static void thread_cleanup(void* thread_info)
+ 	}
+ 	free(thread_info);
+ }
++#endif
+ 
+ 
+ /**
+  * Once control used to protect the key creation.
+  */
++#ifndef INTEL_SGX_MOD
+ static pthread_once_t once_control = PTHREAD_ONCE_INIT;
+ 
+ /**
+@@ -496,6 +611,29 @@ static __cxa_thread_info *thread_info_fast()
+ 	if (fakeTLS) { return &singleThreadInfo; }
+ 	return static_cast<__cxa_thread_info*>(pthread_getspecific(eh_key));
+ }
++#else /* INTEL_SGX_MOD */
++/**
++ * SGX has no pthread TLS here; instead return a pointer into the inline,
++ * zero-initialised per-TCS slot (thread_data_t) reserved for this struct.
++ */
++static __cxa_thread_info *__get_thread_info_ptr(void)
++{
++	thread_data_t *td = get_thread_data();
++	return reinterpret_cast<__cxa_thread_info *>(td->cxx_thread_info);
++}
++static __cxa_thread_info *thread_info(void)
++{
++	return __get_thread_info_ptr();
++}
++/**
++ * Fast version of thread_info().  On SGX it is identical: the per-TCS slot is
++ * always available, so there is no first-call initialisation to skip.
++ */
++static __cxa_thread_info *thread_info_fast(void)
++{
++	return __get_thread_info_ptr();
++}
++#endif /* INTEL_SGX_MOD */
+ /**
+  * ABI function returning the __cxa_eh_globals structure.
+  */
+@@ -541,12 +679,28 @@ static bool buffer_allocated[16];
+ /**
+  * Lock used to protect emergency allocation.
+  */
++#ifdef INTEL_SGX_MOD
++/*
++ * Avoid any pthread mutex/condvar here to keep libsgx_pthread out of C++
++ * enclaves: use the SGX-native spinlock and a flag-based busy-wait instead.
++ */
++static sgx_spinlock_t emergency_malloc_lock = SGX_SPINLOCK_INITIALIZER;
++/**
++ * volatile spin flag signalling a chunk in `emergency_buffer' is available; polled without the lock.
++ */
++static volatile bool buffer_available = true;
++#define EMERGENCY_MALLOC_LOCK()   sgx_spin_lock(&emergency_malloc_lock)
++#define EMERGENCY_MALLOC_UNLOCK() sgx_spin_unlock(&emergency_malloc_lock)
++#else
+ static pthread_mutex_t emergency_malloc_lock = PTHREAD_MUTEX_INITIALIZER;
+ /**
+  * Condition variable used to wait when two threads are both trying to use the
+  * emergency malloc() buffer at once.
+  */
+ static pthread_cond_t emergency_malloc_wait = PTHREAD_COND_INITIALIZER;
++#define EMERGENCY_MALLOC_LOCK()   pthread_mutex_lock(&emergency_malloc_lock)
++#define EMERGENCY_MALLOC_UNLOCK() pthread_mutex_unlock(&emergency_malloc_lock)
++#endif
+ 
+ /**
+  * Allocates size bytes from the emergency allocation mechanism, if possible.
+@@ -562,7 +716,7 @@ static char *emergency_malloc(size_t size)
+ 	// Only 4 emergency buffers allowed per thread!
+ 	if (info->emergencyBuffersHeld > 3) { return 0; }
+ 
+-	pthread_mutex_lock(&emergency_malloc_lock);
++	EMERGENCY_MALLOC_LOCK();
+ 	int buffer = -1;
+ 	while (buffer < 0)
+ 	{
+@@ -573,7 +727,7 @@ static char *emergency_malloc(size_t size)
+ 		void *m = calloc(1, size);
+ 		if (0 != m)
+ 		{
+-			pthread_mutex_unlock(&emergency_malloc_lock);
++			EMERGENCY_MALLOC_UNLOCK();
+ 			return static_cast<char*>(m);
+ 		}
+ 		for (int i=0 ; i<16 ; i++)
+@@ -590,10 +744,19 @@ static char *emergency_malloc(size_t size)
+ 		// of the emergency buffers.
+ 		if (buffer < 0)
+ 		{
++#ifdef INTEL_SGX_MOD
++			// No condition variables inside the enclave: drop the lock and
++			// busy-wait on the flag until a buffer is released, then retake it.
++			buffer_available = false;
++			EMERGENCY_MALLOC_UNLOCK();
++			while (!buffer_available) __asm__ __volatile__("pause");
++			EMERGENCY_MALLOC_LOCK();
++#else
+ 			pthread_cond_wait(&emergency_malloc_wait, &emergency_malloc_lock);
++#endif
+ 		}
+ 	}
+-	pthread_mutex_unlock(&emergency_malloc_lock);
++	EMERGENCY_MALLOC_UNLOCK();
+ 	info->emergencyBuffersHeld++;
+ 	return emergency_buffer + (1024 * buffer);
+ }
+@@ -624,15 +787,19 @@ static void emergency_malloc_free(char *ptr)
+ 	// zero the buffer when allocating it, because the static buffers will
+ 	// begin life containing 0 values.
+ 	memset(ptr, 0, 1024);
+-	// Signal the condition variable to wake up any threads that are blocking
+-	// waiting for some space in the emergency buffer
+-	pthread_mutex_lock(&emergency_malloc_lock);
++	// Signal any threads that are blocking waiting for some space in the
++	// emergency buffer that a buffer has become available.
++	EMERGENCY_MALLOC_LOCK();
+ 	// In theory, we don't need to do this with the lock held.  In practice,
+ 	// our array of bools will probably be updated using 32-bit or 64-bit
+ 	// memory operations, so this update may clobber adjacent values.
+ 	buffer_allocated[buffer] = false;
++#ifdef INTEL_SGX_MOD
++	buffer_available = true;
++#else
+ 	pthread_cond_signal(&emergency_malloc_wait);
+-	pthread_mutex_unlock(&emergency_malloc_lock);
++#endif
++	EMERGENCY_MALLOC_UNLOCK();
+ }
+ 
+ static char *alloc_or_die(size_t size)
+@@ -1482,7 +1649,8 @@ namespace pathscale
+ 	 */
+ 	unexpected_handler set_unexpected(unexpected_handler f) _LIBCXXRT_NOEXCEPT
+ 	{
+-		static __cxa_thread_info *info = thread_info();
++		// INTEL_SGX_MOD: no `static` - each thread must read its own per-TCS slot (see __get_thread_info_ptr).
++		__cxa_thread_info *info = thread_info();
+ 		unexpected_handler old = info->unexpectedHandler;
+ 		info->unexpectedHandler = f;
+ 		return old;
+@@ -1492,7 +1660,8 @@ namespace pathscale
+ 	 */
+ 	terminate_handler set_terminate(terminate_handler f) _LIBCXXRT_NOEXCEPT
+ 	{
+-		static __cxa_thread_info *info = thread_info();
++		// INTEL_SGX_MOD: no `static` - each thread must read its own per-TCS slot (see __get_thread_info_ptr).
++		__cxa_thread_info *info = thread_info();
+ 		terminate_handler old = info->terminateHandler;
+ 		info->terminateHandler = f;
+ 		return old;
+@@ -1526,14 +1695,15 @@ namespace std
+ 	 */
+ 	[[noreturn]] void terminate() _LIBCXXRT_NOEXCEPT
+ 	{
+-		static __cxa_thread_info *info = thread_info();
++		// INTEL_SGX_MOD: no `static` - each thread must read its own per-TCS slot (see __get_thread_info_ptr).
++		__cxa_thread_info *info = thread_info();
  		if (0 != info && 0 != info->terminateHandler)
  		{
 -			info->terminateHandler();
@@ -68,6 +342,18 @@ index 9bcf903..18fcdc9 100644
  		}
  		// Should not be reached - a terminate handler is not expected
  		// to return.
+@@ -1546,7 +1716,10 @@ namespace std
+ 	 */
+ 	[[noreturn]] void unexpected()
+ 	{
+-		static __cxa_thread_info *info = thread_info();
++		// INTEL_SGX_MOD: no `static` - each thread must read its own per-TCS slot (see __get_thread_info_ptr).
++		__cxa_thread_info *info = thread_info();
++		// NB: deliberately NOT SGX_INVOKE_HANDLER-wrapped - an unexpected
++		// handler is allowed to throw (it's the standard escape route).
+ 		if (0 != info && 0 != info->unexpectedHandler)
+ 		{
+ 			info->unexpectedHandler();
 diff --git a/src/guard.cc b/src/guard.cc
 index cb58aa7..9eb6e32 100644
 --- a/src/guard.cc
