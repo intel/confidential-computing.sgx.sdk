@@ -170,6 +170,13 @@ jobs:
         submodules: recursive
         token: ${{ secrets.ALL_REPO_CONTENTS_READ_PAT || github.token }}
 
+    # checkout marks the workspace a safe.directory on the host, but git inside the
+    # CentOS container doesn't inherit that config, so `make preparation` (git
+    # submodule) trips git's dubious-ownership guard. Re-assert it in-container.
+    - name: Mark workspace safe for git
+      if: ${{ matrix.container-image != '' }}
+      shell: bash
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
     - name: Resolve ccache options
       shell: bash
       run: |
