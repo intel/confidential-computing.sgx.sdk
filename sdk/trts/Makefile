@@ -52,7 +52,8 @@ $(OBJS3): %.o: %.c
 	$(CC) -c $(TCFLAGS) $(CFLAGS) -fPIC $< -o $@
 
 $(OBJS4): %.o: %.c
-	$(CC) -mavx2 -O3 -masm=intel $(filter-out -O2,$(CFLAGS)) $(TCFLAGS) \
+	# Suppress epilogue vzeroupper after ct_decode's inline-asm YMM/ZMM restore.
+	$(CC) -mavx2 -mno-vzeroupper -O3 -masm=intel $(filter-out -O2,$(CFLAGS)) $(TCFLAGS) \
 		-fPIC $(CPPFLAGS) -c $< -o $@
 
 .PHONY: elf_parser
