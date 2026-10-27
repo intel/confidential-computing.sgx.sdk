@@ -293,7 +293,7 @@ END_FUNC
  *                           |   ocall_depth   | 18
  *                           |   reserved      | 17
  *                           |   reserved      | 16
- *                           |   reserved      | 15
+ *                           | reserved / oret | 15
  *                           |     rbx         | 14
  *                           |     rsi         | 13
  *                           |     rdi         | 12
@@ -486,6 +486,15 @@ DECLARE_GLOBAL_FUNC asm_oret
     mov     %xdi, SE_WORDSIZE(%xsp)
     mov     %xsi, 2*SE_WORDSIZE(%xsp)
 #endif
+/*
+ * Keep the ocall return value in the ocall frame (slot 15) before switching
+ * the stack: after the switch, 2*SE_WORDSIZE(%xbx) is below xsp and beyond
+ * the red zone, and an AEX with AEX-Notify enabled runs the exception
+ * handler on this stack, which can overwrite it.
+ */
+    mov     SE_WORDSIZE(%xbx), %xax
+    mov     2*SE_WORDSIZE(%xbx), %xcx
+    mov     %xcx, 15*SE_WORDSIZE(%xax)
     mov     SE_WORDSIZE(%xbx), %xsp    /* restore thread_data.last_sp */
 
 /* restore extended feature registers */
@@ -505,7 +514,7 @@ DECLARE_GLOBAL_FUNC asm_oret
     cld
     rep stos %eax,%es:(%xdi)
 
-    mov     2*SE_WORDSIZE(%xbx), %xax  /* ocall return value */
+    mov     15*SE_WORDSIZE(%xsp), %xax /* ocall return value */
 
 #ifdef LINUX64
     mov     7*SE_WORDSIZE(%xsp), %r15
